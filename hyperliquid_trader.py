@@ -316,17 +316,130 @@ class HyperLiquidTrader:
         }
     
     # ----------------------------------------------------------------------
+    #                    RISK MANAGEMENT METHODS
+    # ----------------------------------------------------------------------
+    def execute_signal_with_risk(
+        self,
+        order_json: Dict[str, Any],
+        risk_manager: 'RiskManager',
+        balance_usd: float
+    ) -> Dict[str, Any]:
+        """
+        Esegue un segnale con risk management integrato.
+
+        Args:
+            order_json: Decisione dal trading agent
+            risk_manager: Istanza del RiskManager
+            balance_usd: Balance corrente
+
+        Returns:
+            Dict con risultato dell'operazione
+        """
+        from risk_manager import RiskManager  # Import locale per evitare circular
+
+        op = order_json.get("operation", "hold")
+        symbol = order_json.get("symbol", "BTC")
+        direction = order_json.get("direction", "long")
+
+        # HOLD - nessuna azione
+        if op == "hold":
+            return {"status": "hold", "message": "Nessuna azione"}
+
+        # CLOSE - chiudi posizione
+        if op == "close":
+            result = self.exchange.market_close(symbol)
+
+            # Rimuovi dal tracking
+            risk_manager.remove_position(symbol)
+
+            return result
+
+        # OPEN - verifica con risk manager
+        can_open = risk_manager.can_open_position(balance_usd)
+        if not can_open["allowed"]:
+            return {
+                "status": "rejected",
+                "reason": can_open["reason"]
+            }
+
+        # Calcola position size con risk management
+        stop_loss_pct = order_json.get("stop_loss_pct", 2.0)
+        take_profit_pct = order_json.get("take_profit_pct", 5.0)
+        requested_portion = order_json.get("target_portion_of_balance", 0.1)
+        leverage = int(order_json.get("leverage", 1))
+
+        sizing = risk_manager.calculate_position_size(
+            balance_usd=balance_usd,
+            requested_portion=requested_portion,
+            stop_loss_pct=stop_loss_pct,
+            leverage=leverage
+        )
+
+        # Aggiorna order_json con size calcolata
+        adjusted_order = order_json.copy()
+        adjusted_order["target_portion_of_balance"] = sizing["effective_portion"]
+
+        # Esegui ordine
+        result = self.execute_signal(adjusted_order)
+
+        if result.get("status") == "ok" or "statuses" in result:
+            # Ottieni prezzo di entry dai mids
+            mids = self.info.all_mids()
+            entry_price = float(mids.get(symbol, 0))
+
+            # Registra posizione per monitoring
+            risk_manager.register_position(
+                symbol=symbol,
+                direction=direction,
+                entry_price=entry_price,
+                size=sizing["size_usd"] / entry_price if entry_price > 0 else 0,
+                leverage=leverage,
+                stop_loss_pct=stop_loss_pct,
+                take_profit_pct=take_profit_pct
+            )
+
+            result["risk_management"] = {
+                "stop_loss_pct": stop_loss_pct,
+                "take_profit_pct": take_profit_pct,
+                "position_size_usd": sizing["size_usd"],
+                "risk_usd": sizing["risk_usd"]
+            }
+
+        return result
+
+    def get_current_prices(self, symbols: list = None) -> Dict[str, float]:
+        """
+        Ottiene i prezzi correnti per i simboli specificati.
+
+        Args:
+            symbols: Lista di simboli (default: BTC, ETH, SOL)
+
+        Returns:
+            Dict {symbol: price}
+        """
+        if symbols is None:
+            symbols = ["BTC", "ETH", "SOL"]
+
+        mids = self.info.all_mids()
+
+        return {
+            symbol: float(mids.get(symbol, 0))
+            for symbol in symbols
+            if symbol in mids
+        }
+
+    # ----------------------------------------------------------------------
     #                           UTILITY DEBUG
     # ----------------------------------------------------------------------
     def debug_symbol_limits(self, symbol: str = None):
         """Mostra i limiti di trading per un simbolo o tutti"""
         print("\n📊 LIMITI TRADING HYPERLIQUID")
         print("-" * 60)
-        
+
         for perp in self.meta["universe"]:
             if symbol and perp["name"] != symbol:
                 continue
-                
+
             print(f"\nSymbol: {perp['name']}")
             print(f"  Min Size: {perp.get('minSz', 'N/A')}")
             print(f"  Size Decimals: {perp.get('szDecimals', 'N/A')}")
