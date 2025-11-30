@@ -9,6 +9,12 @@ import os
 
 from model_manager import get_model_manager
 from db_utils import get_connection
+from token_tracker import get_token_tracker
+from notifications import notifier
+import threading
+import logging
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Trading Agent API")
 
@@ -256,6 +262,99 @@ async def get_bot_operations(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Errore nel recupero delle operazioni: {str(e)}")
 
+
+# =====================
+# Token Usage API Endpoints
+# =====================
+
+@app.get("/api/token-usage")
+async def get_token_usage(period: str = Query("today", description="Period: today, session, week, month, all")):
+    """
+    Restituisce statistiche utilizzo token LLM per periodo specificato
+
+    Args:
+        period: "today", "session", "week", "month", "all"
+
+    Returns:
+        Statistiche dettagliate con breakdown per modello e purpose
+    """
+    try:
+        tracker = get_token_tracker()
+
+        # Determina periodo
+        if period == "session":
+            stats = tracker.get_session_stats()
+            start_time = tracker.session_start
+            end_time = None
+        elif period == "today":
+            stats = tracker.get_daily_stats()
+            now = datetime.now()
+            start_time = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            end_time = None
+        elif period == "week":
+            from datetime import timedelta, timezone
+            end_time = datetime.now(timezone.utc)
+            start_time = end_time - timedelta(days=7)
+            stats = tracker._get_stats_from_db(start_time=start_time, end_time=end_time) if tracker.db_available else tracker._get_stats_from_memory([])
+        elif period == "month":
+            stats = tracker.get_monthly_stats()
+            now = datetime.now()
+            start_time = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            end_time = None
+        elif period == "all":
+            stats = tracker._get_stats_from_db() if tracker.db_available else tracker._get_stats_from_memory(tracker.in_memory_usage)
+            start_time = None
+            end_time = None
+        else:
+            raise HTTPException(status_code=400, detail="Invalid period. Use: today, session, week, month, all")
+
+        # Ottieni breakdown
+        breakdown_by_model = tracker.get_cost_breakdown_by_model(start_time=start_time, end_time=end_time)
+        breakdown_by_purpose = tracker.get_cost_breakdown_by_purpose(start_time=start_time, end_time=end_time)
+
+        return {
+            "period": period,
+            "total_tokens": stats.total_tokens,
+            "input_tokens": stats.input_tokens,
+            "output_tokens": stats.output_tokens,
+            "total_cost_usd": float(stats.total_cost_usd),
+            "input_cost_usd": float(stats.input_cost_usd),
+            "output_cost_usd": float(stats.output_cost_usd),
+            "api_calls_count": stats.api_calls_count,
+            "avg_tokens_per_call": float(stats.avg_tokens_per_call),
+            "avg_response_time_ms": float(stats.avg_response_time_ms),
+            "breakdown_by_model": breakdown_by_model,
+            "breakdown_by_purpose": breakdown_by_purpose,
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Errore nel recupero token usage: {str(e)}")
+
+
+@app.get("/api/token-usage/history")
+async def get_token_history(days: int = Query(30, ge=1, le=365, description="Numero di giorni da includere")):
+    """
+    Restituisce storico giornaliero utilizzo token per grafici
+
+    Args:
+        days: Numero di giorni (1-365)
+
+    Returns:
+        Array di {date, tokens, cost, calls} per ogni giorno
+    """
+    try:
+        tracker = get_token_tracker()
+        history = tracker.get_daily_history(days=days)
+
+        return {
+            "days": days,
+            "data": history
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Errore nel recupero storico: {str(e)}")
+
+
 # Mount static files for frontend
 static_dir = os.path.join(os.path.dirname(__file__), "static")
 if os.path.exists(static_dir):
@@ -269,7 +368,60 @@ if os.path.exists(static_dir):
 def on_startup():
     """Initialize services on startup"""
     print("Trading Agent API started")
-    # TODO: Initialize database, services, etc.
+    
+    # Avvia trading engine in background thread
+    try:
+        # Import qui per evitare import circolari
+        from trading_engine import bot_state, CONFIG, WALLET_ADDRESS, TradingScheduler, trading_cycle, health_check
+        
+        def start_trading_engine():
+            """Avvia il trading engine in un thread separato"""
+            try:
+                logger.info("🚀 Avvio Trading Engine in background...")
+                
+                # Inizializza
+                if not bot_state.initialize():
+                    logger.error("❌ Inizializzazione trading engine fallita")
+                    return
+                
+                # Invia notifica di avvio via Telegram
+                try:
+                    if notifier.enabled:
+                        logger.info("📤 Invio notifica di avvio via Telegram...")
+                        notifier.notify_startup(
+                            testnet=CONFIG["TESTNET"],
+                            tickers=CONFIG["TICKERS"],
+                            cycle_interval_minutes=CONFIG["CYCLE_INTERVAL_MINUTES"],
+                            wallet_address=WALLET_ADDRESS
+                        )
+                        logger.info("✅ Notifica di avvio inviata via Telegram")
+                    else:
+                        logger.warning("⚠️ Telegram notifier non configurato (mancano TELEGRAM_BOT_TOKEN o TELEGRAM_CHAT_ID)")
+                except Exception as e:
+                    logger.error(f"❌ Errore nell'invio notifica Telegram: {e}", exc_info=True)
+                
+                # Avvia scheduler (bloccante)
+                scheduler = TradingScheduler(
+                    trading_func=trading_cycle,
+                    interval_minutes=CONFIG["CYCLE_INTERVAL_MINUTES"],
+                    health_check_func=health_check
+                )
+                
+                scheduler.start()
+                
+            except Exception as e:
+                logger.error(f"❌ Errore nell'avvio trading engine: {e}", exc_info=True)
+        
+        # Avvia in thread separato (daemon=True per terminare con il processo principale)
+        trading_thread = threading.Thread(target=start_trading_engine, daemon=True)
+        trading_thread.start()
+        logger.info("✅ Trading Engine thread avviato")
+        
+    except ImportError as e:
+        logger.warning(f"⚠️ Impossibile importare trading_engine: {e}")
+        logger.warning("⚠️ Trading engine non avviato. Avvia manualmente con: python trading_engine.py")
+    except Exception as e:
+        logger.error(f"❌ Errore nell'avvio trading engine: {e}", exc_info=True)
 
 
 @app.on_event("shutdown")

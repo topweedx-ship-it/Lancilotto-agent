@@ -46,9 +46,14 @@ class TradingScheduler:
         self.last_success: Optional[datetime] = None
         self.last_error: Optional[str] = None
 
-        # Setup signal handlers
-        signal.signal(signal.SIGTERM, self._handle_shutdown)
-        signal.signal(signal.SIGINT, self._handle_shutdown)
+        # Setup signal handlers (solo nel main thread)
+        try:
+            signal.signal(signal.SIGTERM, self._handle_shutdown)
+            signal.signal(signal.SIGINT, self._handle_shutdown)
+        except ValueError:
+            # Signal handlers possono essere registrati solo nel main thread
+            # Se siamo in un thread separato, saltiamo la registrazione
+            logger.warning("⚠️ Signal handlers non registrati (non siamo nel main thread)")
 
     def start(self) -> None:
         """Avvia lo scheduler"""

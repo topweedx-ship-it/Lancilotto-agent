@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { EquityCurve } from './EquityCurve'
 import { OpenPositions } from './OpenPositions'
 import { BotOperations } from './BotOperations'
+import { TokenUsage } from './TokenUsage'
 
 interface BalancePoint {
   timestamp: string
@@ -148,6 +149,11 @@ export function Dashboard() {
               </p>
             </div>
             <OpenPositions positions={openPositions} />
+          </article>
+
+          {/* Token Usage Section */}
+          <article className="p-3 sm:p-4 rounded-lg border border-gray-200 bg-white shadow-sm">
+            <TokenUsage />
           </article>
         </div>
 

@@ -36,6 +36,9 @@ import db_utils
 # Coin screener
 from coin_screener import CoinScreener
 
+# Notifiche Telegram
+from notifications import notifier
+
 # ============================================================
 #                      CONFIGURAZIONE
 # ============================================================
@@ -450,7 +453,23 @@ if __name__ == "__main__":
             logger.error("❌ Inizializzazione fallita")
             sys.exit(1)
 
-        # Avvia scheduler
+        # Invia notifica di avvio via Telegram PRIMA di avviare lo scheduler
+        try:
+            if notifier.enabled:
+                logger.info("📤 Invio notifica di avvio via Telegram...")
+                notifier.notify_startup(
+                    testnet=CONFIG["TESTNET"],
+                    tickers=CONFIG["TICKERS"],
+                    cycle_interval_minutes=CONFIG["CYCLE_INTERVAL_MINUTES"],
+                    wallet_address=WALLET_ADDRESS
+                )
+                logger.info("✅ Notifica di avvio inviata via Telegram")
+            else:
+                logger.warning("⚠️ Telegram notifier non configurato (mancano TELEGRAM_BOT_TOKEN o TELEGRAM_CHAT_ID)")
+        except Exception as e:
+            logger.error(f"❌ Errore nell'invio notifica Telegram: {e}", exc_info=True)
+
+        # Avvia scheduler (bloccante)
         scheduler = TradingScheduler(
             trading_func=trading_cycle,
             interval_minutes=CONFIG["CYCLE_INTERVAL_MINUTES"],

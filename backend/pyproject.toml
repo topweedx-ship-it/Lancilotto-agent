@@ -23,6 +23,7 @@ dependencies = [
     "prophet",
     "eth-account",
     "numpy",
+    "python-telegram-bot>=20.0",
 ]
 
 [tool.uv]

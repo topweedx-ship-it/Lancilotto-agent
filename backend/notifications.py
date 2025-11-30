@@ -134,6 +134,39 @@ Il bot non aprirà nuove posizioni fino a domani.
 ⏰ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
         self.send(msg)
 
+    def notify_startup(
+        self,
+        testnet: bool = True,
+        tickers: list = None,
+        cycle_interval_minutes: int = 60,
+        wallet_address: str = None
+    ) -> None:
+        """Notifica avvio Trading Agent"""
+        if not self.enabled:
+            logger.warning("⚠️ Telegram notifier non abilitato, impossibile inviare notifica di avvio")
+            return
+        
+        tickers_str = ", ".join(tickers) if tickers else "N/A"
+        network = "🧪 TESTNET" if testnet else "🌐 MAINNET"
+        wallet_display = wallet_address[:10] + "..." + wallet_address[-6:] if wallet_address and len(wallet_address) > 16 else (wallet_address or "N/A")
+        
+        msg = f"""🚀 <b>TRADING AGENT AVVIATO</b>
+
+{network}
+<b>Wallet:</b> <code>{wallet_display}</code>
+<b>Asset monitorati:</b> {tickers_str}
+<b>Intervallo cicli:</b> {cycle_interval_minutes} minuti
+
+✅ Sistema operativo e pronto al trading
+
+⏰ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
+        
+        result = self.send(msg)
+        if result:
+            logger.info("✅ Notifica di avvio inviata con successo")
+        else:
+            logger.error("❌ Fallito invio notifica di avvio")
+
 
 # Istanza globale
 notifier = TelegramNotifier()
