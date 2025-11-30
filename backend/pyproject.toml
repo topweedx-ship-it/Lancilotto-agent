@@ -16,6 +16,13 @@ dependencies = [
     "pandas>=2.3.3",
     "ccxt>=4.0.0",
     "python-dotenv",
+    "openai",
+    "psycopg2-binary",
+    "hyperliquid-python-sdk",
+    "ta",
+    "prophet",
+    "eth-account",
+    "numpy",
 ]
 
 [tool.uv]

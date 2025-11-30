@@ -6,9 +6,6 @@ __pycache__/
 # C extensions
 *.so
 
-#Prompt
-/prompt
-
 # Distribution / packaging
 .Python
 build/
@@ -208,4 +205,3 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
-node_modules
