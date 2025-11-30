@@ -107,9 +107,9 @@ class TradingScheduler:
         self.cycle_count += 1
         start_time = datetime.now(timezone.utc)
 
-        logger.info(f"\n{'='*20}")
+        logger.info(f"{'='*30}")
         logger.info(f"📊 CICLO TRADING #{self.cycle_count} - {start_time.strftime('%Y-%m-%d %H:%M:%S')} UTC")
-        logger.info(f"{'='*20}")
+        logger.info(f"{'='*30}")
 
         try:
             self.trading_func()
