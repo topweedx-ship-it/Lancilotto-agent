@@ -427,6 +427,18 @@ def trading_cycle() -> None:
                                     )
                                     del bot_state.active_trades[symbol]
                                     logger.debug(f"📝 Trade {symbol} logged as closed (SL/TP)")
+
+                                    # Notifica Telegram
+                                    try:
+                                        notifier.notify_trade_closed(
+                                            symbol=symbol,
+                                            direction=position.get("side", "unknown").lower() if position else "unknown",
+                                            pnl=pnl,
+                                            pnl_pct=pnl_pct or 0.0,
+                                            reason=reason
+                                        )
+                                    except Exception as note_err:
+                                        logger.warning(f"⚠️ Errore notifica Telegram chiusura (SL/TP): {note_err}")
                                 except Exception as log_err:
                                     logger.warning(f"⚠️ Errore logging chiusura trade {symbol}: {log_err}")
                         else:
@@ -681,6 +693,20 @@ Trend Analysis for {symbol}:
                                 bot_state.active_trades[symbol] = trade_id
                                 logger.debug(f"📝 Trade {symbol} logged as open (ID: {trade_id})")
 
+                                # Notifica Telegram
+                                try:
+                                    notifier.notify_trade_opened(
+                                        symbol=symbol,
+                                        direction=direction,
+                                        size_usd=result.get("size_usd", 0.0),
+                                        leverage=decision.get("leverage", 1),
+                                        entry_price=result.get("fill_price", 0.0),
+                                        stop_loss=decision.get("stop_loss", 0.0),
+                                        take_profit=decision.get("take_profit", 0.0)
+                                    )
+                                except Exception as note_err:
+                                    logger.warning(f"⚠️ Errore notifica Telegram apertura: {note_err}")
+
                             elif operation == "close" and result.get("status") == "ok":
                                 # Log closed trade
                                 if symbol in bot_state.active_trades:
@@ -707,6 +733,18 @@ Trend Analysis for {symbol}:
                                     )
                                     del bot_state.active_trades[symbol]
                                     logger.debug(f"📝 Trade {symbol} logged as closed")
+
+                                    # Notifica Telegram
+                                    try:
+                                        notifier.notify_trade_closed(
+                                            symbol=symbol,
+                                            direction=position.get("side", "unknown").lower() if position else "unknown",
+                                            pnl=pnl_usd or 0.0,
+                                            pnl_pct=pnl_pct or 0.0,
+                                            reason=decision.get("reason", "Signal AI")
+                                        )
+                                    except Exception as note_err:
+                                        logger.warning(f"⚠️ Errore notifica Telegram chiusura: {note_err}")
                                 else:
                                     logger.warning(f"⚠️ Close operation per {symbol} ma nessun trade attivo tracciato")
 
