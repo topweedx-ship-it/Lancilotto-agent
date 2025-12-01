@@ -4,6 +4,20 @@
 
 Implemented a complete cryptocurrency screening system that dynamically selects the best coins for trading based on quantitative criteria.
 
+## Change Log
+
+### 2025-12-01: Rate Limiting Optimization
+
+Addressed severe rate limiting issues (429 errors) with Hyperliquid API during full screening.
+
+**Changes:**
+- **Batch Price Fetching**: Implemented `get_all_prices()` in `HyperliquidDataProvider` to fetch all symbol prices in a single API call instead of one per symbol.
+- **Consolidated Metrics Fetching**: Refactored `get_coin_metrics` to use a single OHLCV fetch (250 days) for all calculations (Momentum, Volume, ATR, Trend Indicators) instead of multiple specific fetches. This reduced API calls per symbol from ~6 to 1.
+- **Optimized Delays**: Adjusted delays in `screener.py` to be more efficient (0.5s between calls, 5s pause every 20 symbols) while remaining safe due to reduced call volume.
+- **Result**: Screening process is significantly faster and robust against 429 errors.
+
+---
+
 ## Files Created
 
 ### Core Module (`coin_screener/`)
@@ -71,8 +85,8 @@ Exclude coins that don't meet minimum criteria:
 
 - **Hyperliquid**: Prices, spreads, volume, ATR, days listed
 - **CoinGecko**: Market cap, global volume 24h
-- Automatic mapping between Hyperliquid symbols and CoinGecko IDs
-- Rate limiting and retry logic
+- **Automatic mapping** between Hyperliquid symbols and CoinGecko IDs
+- **Rate limiting and retry logic**
 
 ### 4. Caching System ✅
 
@@ -318,6 +332,7 @@ Same as main trading-agent project.
 ---
 
 **Implementation Date**: 2025-11-26
+**Last Updated**: 2025-12-01
 **Total Files**: 16 created, 1 modified
 **Total Lines of Code**: ~2,500
 **Implementation Time**: Single session

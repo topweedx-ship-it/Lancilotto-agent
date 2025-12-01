@@ -86,6 +86,15 @@ class HyperliquidDataProvider:
                 raise
         return None
 
+    def get_all_prices(self) -> Dict[str, float]:
+        """Fetch current prices for all symbols once."""
+        try:
+            mids = self._retry_api_call(self.info.all_mids)
+            return {k: float(v) for k, v in mids.items()}
+        except Exception as e:
+            logger.error(f"Error fetching all prices: {e}")
+            return {}
+
     def get_available_symbols(self) -> List[str]:
         """
         Get list of all available trading symbols.
@@ -102,42 +111,55 @@ class HyperliquidDataProvider:
             logger.error(f"Error fetching available symbols: {e}")
             return []
 
-    def get_coin_metrics(self, symbol: str) -> Optional[CoinMetrics]:
+    def get_coin_metrics(self, symbol: str, current_price: Optional[float] = None) -> Optional[CoinMetrics]:
         """
         Fetch comprehensive metrics for a single coin.
 
         Args:
             symbol: Coin symbol (e.g., 'BTC')
+            current_price: Optional pre-fetched current price
 
         Returns:
             CoinMetrics object or None if error
         """
         try:
-            # Get current price
-            mids = self._retry_api_call(self.info.all_mids)
-            if symbol not in mids:
-                logger.warning(f"Symbol {symbol} not found in mids")
-                return None
-
-            current_price = float(mids[symbol])
+            # Get current price if not provided
+            if current_price is None:
+                mids = self._retry_api_call(self.info.all_mids)
+                if symbol not in mids:
+                    logger.warning(f"Symbol {symbol} not found in mids")
+                    return None
+                current_price = float(mids[symbol])
 
             # Get orderbook for spread calculation
             spread_pct = self._calculate_spread(symbol)
 
+            # Fetch OHLCV data ONCE for all metrics
+            # 250 candles covers:
+            # - Trend indicators (EMA200)
+            # - ATR (40)
+            # - 30d/7d avg volume
+            # - 30d/7d price change
+            df = self._fetch_ohlcv(symbol, interval="1d", limit=250)
+            
+            if df is None or df.empty:
+                logger.warning(f"No OHLCV data for {symbol}")
+                return None
+
             # Get historical prices for momentum
-            price_7d = self._get_historical_price(symbol, days=7)
-            price_30d = self._get_historical_price(symbol, days=30)
+            price_7d = self._get_historical_price_from_df(df, days=7)
+            price_30d = self._get_historical_price_from_df(df, days=30)
 
             # Get volume metrics
-            volume_24h = self._get_24h_volume(symbol)
-            volume_7d_avg = self._get_avg_volume(symbol, days=7)
-            volume_30d_avg = self._get_avg_volume(symbol, days=30)
+            volume_24h = self._get_24h_volume_from_df(df, current_price)
+            volume_7d_avg = self._get_avg_volume_from_df(df, days=7)
+            volume_30d_avg = self._get_avg_volume_from_df(df, days=30)
 
             # Get ATR for volatility
-            atr_14, atr_sma_20 = self._calculate_atr_metrics(symbol)
+            atr_14, atr_sma_20 = self._calculate_atr_metrics_from_df(df)
 
             # Get trend indicators (Phase 1 enhancement)
-            trend_indicators = self._calculate_trend_indicators(symbol)
+            trend_indicators = self._calculate_trend_indicators_from_df(df)
 
             # Get funding rate (placeholder for now)
             funding_rate = 0.0  # Will be implemented if API available
@@ -147,7 +169,7 @@ class HyperliquidDataProvider:
             oi_7d_ago = 0.0
 
             # Calculate days listed (estimate from available candle data)
-            days_listed = self._estimate_days_listed(symbol)
+            days_listed = len(df)
 
             # Note: market_cap needs external data (CoinGecko)
             # For now, use a placeholder that will be filled by CoinGecko provider
@@ -212,104 +234,6 @@ class HyperliquidDataProvider:
         except Exception as e:
             logger.debug(f"Error calculating spread for {symbol}: {e}")
             return 0.5
-
-    def _get_historical_price(self, symbol: str, days: int) -> Optional[float]:
-        """Get price from N days ago"""
-        try:
-            df = self._fetch_ohlcv(symbol, interval="1d", limit=days + 1)
-            if df is None or len(df) < days + 1:
-                return None
-
-            return float(df.iloc[-(days + 1)]["close"])
-
-        except Exception as e:
-            logger.debug(f"Error getting {days}d price for {symbol}: {e}")
-            return None
-
-    def _get_24h_volume(self, symbol: str) -> float:
-        """Get 24h volume in USD"""
-        try:
-            df = self._fetch_ohlcv(symbol, interval="1d", limit=2)
-            if df is None or len(df) < 1:
-                return 0.0
-
-            # Last complete day volume
-            last_volume = float(df.iloc[-1]["volume"])
-            last_price = float(df.iloc[-1]["close"])
-
-            return last_volume * last_price
-
-        except Exception as e:
-            logger.debug(f"Error getting 24h volume for {symbol}: {e}")
-            return 0.0
-
-    def _get_avg_volume(self, symbol: str, days: int) -> Optional[float]:
-        """Get average volume over N days"""
-        try:
-            df = self._fetch_ohlcv(symbol, interval="1d", limit=days)
-            if df is None or len(df) < days:
-                return None
-
-            avg_volume = df["volume"].tail(days).mean()
-            avg_price = df["close"].tail(days).mean()
-
-            return float(avg_volume * avg_price)
-
-        except Exception as e:
-            logger.debug(f"Error getting {days}d avg volume for {symbol}: {e}")
-            return None
-
-    def _calculate_atr_metrics(self, symbol: str) -> tuple[Optional[float], Optional[float]]:
-        """
-        Calculate ATR(14) and SMA(ATR, 20)
-
-        Returns:
-            Tuple of (atr_14, atr_sma_20)
-        """
-        try:
-            df = self._fetch_ohlcv(symbol, interval="1d", limit=40)
-            if df is None or len(df) < 40:
-                return None, None
-
-            # Calculate ATR(14)
-            atr_indicator = ta.volatility.AverageTrueRange(
-                high=df["high"],
-                low=df["low"],
-                close=df["close"],
-                window=14
-            )
-            df["atr_14"] = atr_indicator.average_true_range()
-
-            # Calculate SMA(ATR, 20)
-            df["atr_sma_20"] = df["atr_14"].rolling(window=20).mean()
-
-            # Get latest values
-            atr_14 = float(df.iloc[-1]["atr_14"])
-            atr_sma_20 = float(df.iloc[-1]["atr_sma_20"])
-
-            return atr_14, atr_sma_20
-
-        except Exception as e:
-            logger.debug(f"Error calculating ATR for {symbol}: {e}")
-            return None, None
-
-    def _estimate_days_listed(self, symbol: str) -> int:
-        """
-        Estimate number of days a symbol has been listed.
-
-        Uses maximum available candle history as proxy.
-        """
-        try:
-            # Try to fetch 1-year of daily data
-            df = self._fetch_ohlcv(symbol, interval="1d", limit=365)
-            if df is None:
-                return 0
-
-            return len(df)
-
-        except Exception as e:
-            logger.debug(f"Error estimating days listed for {symbol}: {e}")
-            return 0
 
     def _fetch_ohlcv(self, symbol: str, interval: str, limit: int) -> Optional[pd.DataFrame]:
         """
@@ -377,56 +301,101 @@ class HyperliquidDataProvider:
             logger.debug(f"Error fetching OHLCV for {symbol}: {e}")
             return None
 
-    def _calculate_trend_indicators(self, symbol: str) -> Dict[str, Optional[float]]:
-        """
-        Calculate trend indicators from daily data for Phase 1 enhancement.
-
-        Calculates:
-        - ADX (14-period Average Directional Index)
-        - +DI and -DI (Directional Indicators)
-        - EMAs (20, 50, 200-period Exponential Moving Averages)
-        - Donchian Channel (20-period) and position within it
-
-        Args:
-            symbol: Coin symbol
-
-        Returns:
-            Dictionary with trend indicator values
-        """
+    def _get_historical_price_from_df(self, df: pd.DataFrame, days: int) -> Optional[float]:
+        """Get price from N days ago using pre-fetched DataFrame"""
         try:
-            # Fetch 250 days of data to calculate EMA200 properly
-            df = self._fetch_ohlcv(symbol, interval="1d", limit=250)
+            if len(df) < days + 1:
+                return None
+            return float(df.iloc[-(days + 1)]["close"])
+        except Exception:
+            return None
 
-            if df is None or len(df) < 50:
-                logger.debug(f"Insufficient daily data for trend indicators on {symbol}")
+    def _get_24h_volume_from_df(self, df: pd.DataFrame, current_price: float) -> float:
+        """Get 24h volume in USD using pre-fetched DataFrame"""
+        try:
+            if df.empty:
+                return 0.0
+            # Last complete day volume or just last candle?
+            # Previously used last candle.
+            last_volume = float(df.iloc[-1]["volume"])
+            # Using provided current_price is better than close of yesterday for 24h volume est
+            return last_volume * current_price
+        except Exception:
+            return 0.0
+
+    def _get_avg_volume_from_df(self, df: pd.DataFrame, days: int) -> Optional[float]:
+        """Get average volume over N days using pre-fetched DataFrame"""
+        try:
+            if len(df) < days:
+                return None
+            
+            subset = df.tail(days)
+            avg_volume = subset["volume"].mean()
+            avg_price = subset["close"].mean()
+            return float(avg_volume * avg_price)
+        except Exception:
+            return None
+
+    def _calculate_atr_metrics_from_df(self, df: pd.DataFrame) -> tuple[Optional[float], Optional[float]]:
+        """Calculate ATR(14) and SMA(ATR, 20) using pre-fetched DataFrame"""
+        try:
+            if len(df) < 40:
+                return None, None
+
+            # Calculate ATR(14)
+            atr_indicator = ta.volatility.AverageTrueRange(
+                high=df["high"],
+                low=df["low"],
+                close=df["close"],
+                window=14
+            )
+            
+            # We need to be careful not to modify the passed df in place if we reuse it, 
+            # but adding columns is fine if we don't need pristine state later.
+            # Using a copy to be safe.
+            df_calc = df.copy()
+            df_calc["atr_14"] = atr_indicator.average_true_range()
+            df_calc["atr_sma_20"] = df_calc["atr_14"].rolling(window=20).mean()
+
+            atr_14 = float(df_calc.iloc[-1]["atr_14"])
+            atr_sma_20 = float(df_calc.iloc[-1]["atr_sma_20"])
+
+            return atr_14, atr_sma_20
+        except Exception:
+            return None, None
+
+    def _calculate_trend_indicators_from_df(self, df: pd.DataFrame) -> Dict[str, Optional[float]]:
+        """Calculate trend indicators using pre-fetched DataFrame"""
+        try:
+            if len(df) < 50:
                 return {}
+
+            df_calc = df.copy()
 
             # Calculate ADX and Directional Indicators
             adx_indicator = ta.trend.ADXIndicator(
-                high=df['high'],
-                low=df['low'],
-                close=df['close'],
+                high=df_calc['high'],
+                low=df_calc['low'],
+                close=df_calc['close'],
                 window=14
             )
-            adx_14 = adx_indicator.adx().iloc[-1] if len(df) >= 14 else None
-            plus_di = adx_indicator.adx_pos().iloc[-1] if len(df) >= 14 else None
-            minus_di = adx_indicator.adx_neg().iloc[-1] if len(df) >= 14 else None
+            adx_14 = adx_indicator.adx().iloc[-1] if len(df_calc) >= 14 else None
+            plus_di = adx_indicator.adx_pos().iloc[-1] if len(df_calc) >= 14 else None
+            minus_di = adx_indicator.adx_neg().iloc[-1] if len(df_calc) >= 14 else None
 
             # Calculate EMAs
-            ema_20 = ta.trend.EMAIndicator(df['close'], window=20).ema_indicator().iloc[-1] if len(df) >= 20 else None
-            ema_50 = ta.trend.EMAIndicator(df['close'], window=50).ema_indicator().iloc[-1] if len(df) >= 50 else None
-            ema_200 = ta.trend.EMAIndicator(df['close'], window=200).ema_indicator().iloc[-1] if len(df) >= 200 else None
+            ema_20 = ta.trend.EMAIndicator(df_calc['close'], window=20).ema_indicator().iloc[-1] if len(df_calc) >= 20 else None
+            ema_50 = ta.trend.EMAIndicator(df_calc['close'], window=50).ema_indicator().iloc[-1] if len(df_calc) >= 50 else None
+            ema_200 = ta.trend.EMAIndicator(df_calc['close'], window=200).ema_indicator().iloc[-1] if len(df_calc) >= 200 else None
 
             # Calculate Donchian Channel (20-period)
-            donchian_upper = df['high'].rolling(window=20).max().iloc[-1] if len(df) >= 20 else None
-            donchian_lower = df['low'].rolling(window=20).min().iloc[-1] if len(df) >= 20 else None
+            donchian_upper = df_calc['high'].rolling(window=20).max().iloc[-1] if len(df_calc) >= 20 else None
+            donchian_lower = df_calc['low'].rolling(window=20).min().iloc[-1] if len(df_calc) >= 20 else None
 
-            # Calculate position within Donchian Channel (0-1 range)
-            current_price = df['close'].iloc[-1]
+            current_price = df_calc['close'].iloc[-1]
             donchian_position = None
             if donchian_upper is not None and donchian_lower is not None and donchian_upper > donchian_lower:
                 donchian_position = (current_price - donchian_lower) / (donchian_upper - donchian_lower)
-                # Clamp to 0-1 range
                 donchian_position = max(0.0, min(1.0, donchian_position))
 
             return {
@@ -440,7 +409,5 @@ class HyperliquidDataProvider:
                 'donchian_lower_20': donchian_lower,
                 'donchian_position': donchian_position
             }
-
-        except Exception as e:
-            logger.debug(f"Error calculating trend indicators for {symbol}: {e}")
+        except Exception:
             return {}

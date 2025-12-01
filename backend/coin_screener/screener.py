@@ -281,13 +281,22 @@ class CoinScreener:
 
         # Fetch Hyperliquid data
         logger.info(f"Fetching Hyperliquid data for {len(symbols)} symbols...")
-        logger.warning("⚠️ Rate limiting severo: usando delay estesi tra le chiamate (2-3s per simbolo)")
+        
+        # Fetch all prices once to save API calls
+        all_prices = self.hl_provider.get_all_prices()
+        logger.info(f"Pre-fetched prices for {len(all_prices)} symbols")
+
+        # logger.warning("⚠️ Rate limiting severo: usando delay estesi tra le chiamate (2-3s per simbolo)") # Removed warning as we optimized
+        logger.info("Fetching detailed metrics (optimized batching)...")
+        
         hl_metrics = {}
         import time
         consecutive_429 = 0  # Track consecutive 429 errors
         
         for i, symbol in enumerate(symbols):
             # Add delay between requests to avoid rate limiting
+            # Optimized: We now make fewer calls per symbol (1 candle fetch + 1 l2 snapshot)
+            # Reduced delay from 2s to 0.5s, but keep safety breaks
             if i > 0:
                 if consecutive_429 >= 3:
                     # Se abbiamo ricevuto molti 429 consecutivi, aspettiamo più a lungo
@@ -295,14 +304,17 @@ class CoinScreener:
                     logger.warning(f"⚠️ Molti errori 429 consecutivi ({consecutive_429}), pausa di {wait_time}s...")
                     time.sleep(wait_time)
                     consecutive_429 = 0  # Reset counter
-                elif i % 10 == 0:  # Every 10 requests, add a longer delay
+                elif i % 20 == 0:  # Every 20 requests (was 10), add a pause
                     logger.info(f"Processed {i}/{len(symbols)} symbols, pausing to avoid rate limits...")
-                    time.sleep(10)  # 10 second pause every 10 requests
+                    time.sleep(5)  # 5 second pause (was 10)
                 else:
-                    time.sleep(2)  # 2 second delay between requests (aumentato da 0.5s)
+                    time.sleep(0.5)  # 0.5 second delay (was 2)
             
             try:
-                metrics = self.hl_provider.get_coin_metrics(symbol)
+                # Pass pre-fetched price
+                current_price = all_prices.get(symbol)
+                metrics = self.hl_provider.get_coin_metrics(symbol, current_price=current_price)
+                
                 if metrics:
                     hl_metrics[symbol] = metrics
                     consecutive_429 = 0  # Reset on success

@@ -272,6 +272,13 @@ Se usi la tier gratuita (50 req/min):
 - Considera ottenere una API key Pro per rate limit più alti
 - Il caching riduce le chiamate ripetute
 
+### Hyperliquid Rate Limiting (429)
+Il sistema implementa diverse ottimizzazioni per evitare il rate limiting severo di Hyperliquid:
+- **Pre-fetching dei prezzi**: I prezzi correnti (`all_mids`) vengono scaricati in un'unica chiamata batch all'inizio dello screening, invece di una chiamata per ogni simbolo.
+- **Singola chiamata per metriche**: Invece di 5-6 chiamate separate per simbolo (7d, 30d, volume, ATR, trend), viene scaricato un unico set di candele OHLCV (250 giorni) e tutte le metriche vengono calcolate in memoria.
+- **Adaptive Delays**: Il sistema introduce delay tra le chiamate (0.5s) e pause più lunghe (5s) ogni 20 simboli.
+- **Exponential Backoff**: Se si verifica un errore 429, il sistema attende progressivamente più a lungo (fino a 30s) prima di riprovare.
+
 ### Screening molto lento
 - Prima esecuzione è lenta (fetching dati per tutte le coin)
 - Successive esecuzioni usano cache
