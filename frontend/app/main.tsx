@@ -13,7 +13,7 @@ function App() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-200 via-gray-50 to-gray-100 flex flex-col">
       <header className="border-b border-gray-200 p-4 sm:p-6">
-        <div className="container mx-auto max-w-[1180px]">
+        <div className="container mx-auto max-w-[1600px]">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3 sm:gap-4">
               <img
@@ -35,7 +35,7 @@ function App() {
         <Dashboard />
       </main>
       <footer className="border-t border-gray-200 py-3 sm:py-4 mt-auto">
-        <div className="container mx-auto max-w-[1180px] px-4 sm:px-6">
+        <div className="container mx-auto max-w-[1600px] px-4 sm:px-6">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs sm:text-sm text-muted-foreground">
             <p className="text-center sm:text-left">© {new Date().getFullYear()} Trading Agent Dashboard. All rights reserved.</p>
             <button

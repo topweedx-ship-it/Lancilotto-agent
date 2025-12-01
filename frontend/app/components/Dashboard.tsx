@@ -159,7 +159,7 @@ export function Dashboard() {
   }
 
   return (
-    <div className="container mx-auto max-w-[1280px] px-4 sm:px-6 py-6 space-y-6">
+    <div className="container mx-auto max-w-[1600px] px-4 sm:px-6 py-6 space-y-6">
 
       {/* Header Actions */}
       <div className="flex justify-between items-center">
