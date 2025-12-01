@@ -82,7 +82,7 @@ Respond EXCLUSIVELY with a valid JSON in this format:
 ```json
 {{
   "operation": "open|close|hold",
-  "symbol": "BTC|ETH|SOL",
+  "symbol": "COIN_SYMBOL",
   "direction": "long|short",
   "target_portion_of_balance": 0.1,
   "leverage": 3,

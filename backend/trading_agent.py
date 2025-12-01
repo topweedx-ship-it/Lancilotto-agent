@@ -26,8 +26,7 @@ TRADE_DECISION_SCHEMA = {
         },
         "symbol": {
             "type": "string",
-            "enum": ["BTC", "ETH", "SOL"],
-            "description": "Simbolo crypto su cui operare"
+            "description": "Simbolo crypto su cui operare (es. BTC, ETH, SOL, AAVE)"
         },
         "direction": {
             "type": "string",
@@ -164,7 +163,7 @@ def previsione_trading_agent(
 
 {
   "operation": "open|close|hold",
-  "symbol": "BTC|ETH|SOL",
+  "symbol": "COIN_SYMBOL",
   "direction": "long|short",
   "target_portion_of_balance": 0.1,
   "leverage": 3,
@@ -176,7 +175,7 @@ def previsione_trading_agent(
 
 IMPORTANT: 
 - operation must be one of: "open", "close", "hold"
-- symbol must be one of: "BTC", "ETH", "SOL"
+- symbol must be the ticker of the analyzed coin (e.g. "BTC", "ETH", "SOL", "AAVE")
 - direction must be "long" or "short"
 - target_portion_of_balance: number between 0.0 and 1.0
 - leverage: integer between 1 and 10
