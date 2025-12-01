@@ -4,10 +4,10 @@ import { OpenPositions } from './OpenPositions'
 import { BotOperations } from './BotOperations'
 import { TokenUsage } from './TokenUsage'
 import { ClosedPositions } from './ClosedPositions'
-import { MarketData } from './MarketData'
 import { SystemLogs } from './SystemLogs'
 import { PerformanceOverview } from './PerformanceOverview'
 import { SystemConfig } from './SystemConfig'
+import { DecisionViewer } from './DecisionViewer'
 
 interface BalancePoint {
   timestamp: string
@@ -48,8 +48,8 @@ export function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Initial configuration state
-  const [activeTickers, setActiveTickers] = useState<string[]>(['BTC'])
+  // Removed activeTickers state as MarketData component is removed
+  // const [activeTickers, setActiveTickers] = useState<string[]>(['BTC'])
 
   const fetchData = async (retryCount = 0, isRefresh = false) => {
     const maxRetries = 5
@@ -65,12 +65,10 @@ export function Dashboard() {
 
     try {
       const baseUrl = API_BASE_URL || ''
-      const [balanceRes, positionsRes, operationsRes, configRes, screenerRes] = await Promise.all([
+      const [balanceRes, positionsRes, operationsRes] = await Promise.all([
         fetch(`${baseUrl}/api/balance`),
         fetch(`${baseUrl}/api/open-positions`),
         fetch(`${baseUrl}/api/bot-operations?limit=10`), // Limit to 10 as per screenshot text
-        fetch(`${baseUrl}/api/config`),
-        fetch(`${baseUrl}/api/screener/latest`)
       ])
 
       if (!balanceRes.ok) throw new Error(`Errore nel caricamento del saldo: ${balanceRes.statusText}`)
@@ -82,27 +80,6 @@ export function Dashboard() {
         positionsRes.json(),
         operationsRes.json(),
       ])
-
-      // Aggiorna i ticker attivi se la chiamata config ha successo
-      if (configRes.ok) {
-        const configData = await configRes.json()
-        let tickers = configData.trading?.tickers || ['BTC']
-
-        // Se lo screener è attivo e abbiamo risultati recenti, usa quelli
-        if (configData.coin_screener?.enabled && screenerRes.ok) {
-          try {
-            const screenerData = await screenerRes.json()
-            if (screenerData.selected_coins && Array.isArray(screenerData.selected_coins) && screenerData.selected_coins.length > 0) {
-              // Usa i ticker selezionati dallo screener (già ordinati per score)
-              tickers = screenerData.selected_coins.map((c: any) => c.symbol)
-            }
-          } catch (e) {
-            console.warn('Errore parsing screener data, uso fallback tickers', e)
-          }
-        }
-
-        setActiveTickers(tickers)
-      }
 
       setBalance(balanceData)
       setOpenPositions(positionsData)
@@ -235,11 +212,10 @@ export function Dashboard() {
             <OpenPositions positions={openPositions} />
           </article>
 
-          {/* Market Data Widget */}
-          <MarketData symbols={activeTickers} />
-
-          {/* System Configuration */}
-          <SystemConfig />
+          {/* Latest Decision Analysis (replaces Market Data prominence) */}
+          <article>
+            <DecisionViewer />
+          </article>
 
           {/* Closed Positions (Estimated) */}
           <article className="p-6 rounded-xl border border-gray-200 bg-white shadow-sm">
@@ -296,9 +272,12 @@ export function Dashboard() {
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
             </button>
           </div>
-          <div className="max-h-[calc(100vh-200px)] overflow-y-auto scrollbar-thin pr-1">
+          <div className="max-h-[calc(100vh-200px)] overflow-y-auto scrollbar-thin pr-1 mb-6">
             <BotOperations operations={botOperations} />
           </div>
+
+          {/* System Configuration - Moved here */}
+          <SystemConfig />
         </aside>
 
       </div>

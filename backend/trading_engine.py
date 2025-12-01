@@ -807,6 +807,13 @@ Trend Analysis for {symbol}:
         # 7. LOG SU DATABASE
         # ========================================
         try:
+            # Enhance decision payload with execution result and trend info
+            if 'trend_info' not in decision and trend_info:
+                decision['trend_info'] = trend_info
+            
+            if 'execution_result' not in decision:
+                decision['execution_result'] = result
+
             op_id = db_utils.log_bot_operation(
                 operation_payload=decision,
                 system_prompt=system_prompt,
