@@ -132,70 +132,67 @@ export function DecisionHistory() {
                             })
 
                             return (
-                                <>
-                                    {/* React Fragment to allow multiple rows from one map iteration */}
-                                    <React.Fragment key={op.id}>
-                                        <tr
-                                            className={`hover:bg-blue-50/30 transition-colors cursor-pointer ${isExpanded ? 'bg-blue-50/50' : ''}`}
-                                            onClick={() => setExpandedId(isExpanded ? null : op.id)}
-                                        >
-                                            <td className="py-3 px-4 text-gray-500 whitespace-nowrap text-xs">{date}</td>
-                                            <td className="py-3 px-4 font-bold text-gray-800">{payload.symbol || 'N/A'}</td>
-                                            <td className="py-3 px-4">{getOperationBadge(payload)}</td>
-                                            <td className="py-3 px-4">{getStatusBadge(payload)}</td>
-                                            <td className="py-3 px-4">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-12 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                                                        <div
-                                                            className={`h-full rounded-full ${getConfidenceColor(payload.confidence)}`}
-                                                            style={{ width: `${(payload.confidence || 0) * 100}%` }}
-                                                        />
+                                <React.Fragment key={op.id}>
+                                    <tr
+                                        className={`hover:bg-blue-50/30 transition-colors cursor-pointer ${isExpanded ? 'bg-blue-50/50' : ''}`}
+                                        onClick={() => setExpandedId(isExpanded ? null : op.id)}
+                                    >
+                                        <td className="py-3 px-4 text-gray-500 whitespace-nowrap text-xs">{date}</td>
+                                        <td className="py-3 px-4 font-bold text-gray-800">{payload.symbol || 'N/A'}</td>
+                                        <td className="py-3 px-4">{getOperationBadge(payload)}</td>
+                                        <td className="py-3 px-4">{getStatusBadge(payload)}</td>
+                                        <td className="py-3 px-4">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-12 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                                    <div
+                                                        className={`h-full rounded-full ${getConfidenceColor(payload.confidence)}`}
+                                                        style={{ width: `${(payload.confidence || 0) * 100}%` }}
+                                                    />
+                                                </div>
+                                                <span className="text-xs text-gray-500 font-mono">{(payload.confidence * 100).toFixed(0)}%</span>
+                                            </div>
+                                        </td>
+                                        <td className="py-3 px-4 text-gray-600 truncate max-w-[300px]">
+                                            {payload.reason}
+                                        </td>
+                                        <td className="py-3 px-4 text-gray-400">
+                                            <svg className={`w-4 h-4 transform transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                            </svg>
+                                        </td>
+                                    </tr>
+                                    {isExpanded && (
+                                        <tr className="bg-gray-50/50">
+                                            <td colSpan={7} className="p-4 border-b border-gray-100">
+                                                <div className="space-y-3 text-xs text-gray-700">
+                                                    <div>
+                                                        <span className="font-bold uppercase text-gray-500 mb-1 block">Motivazione Completa</span>
+                                                        <p className="leading-relaxed bg-white p-3 rounded border border-gray-200">{payload.reason}</p>
                                                     </div>
-                                                    <span className="text-xs text-gray-500 font-mono">{(payload.confidence * 100).toFixed(0)}%</span>
+
+                                                    {payload.trend_info && (
+                                                        <div>
+                                                            <span className="font-bold uppercase text-gray-500 mb-1 block">Dettagli Trend</span>
+                                                            <pre className="whitespace-pre-wrap font-mono bg-gray-800 text-gray-100 p-3 rounded text-[10px] overflow-x-auto">
+                                                                {payload.trend_info}
+                                                            </pre>
+                                                        </div>
+                                                    )}
+
+                                                    <div className="flex gap-4 text-gray-500 pt-2 border-t border-gray-200 mt-2">
+                                                        <span>ID Op: <b>{op.id}</b></span>
+                                                        {payload._model_name && <span>Modello: <b>{payload._model_name}</b></span>}
+                                                        {payload.execution_result && (
+                                                            <span className={`${payload.execution_result.status === 'blocked' ? 'text-red-600 font-bold' : ''}`}>
+                                                                Stato: {payload.execution_result.status}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </td>
-                                            <td className="py-3 px-4 text-gray-600 truncate max-w-[300px]">
-                                                {payload.reason}
-                                            </td>
-                                            <td className="py-3 px-4 text-gray-400">
-                                                <svg className={`w-4 h-4 transform transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                                </svg>
-                                            </td>
                                         </tr>
-                                        {isExpanded && (
-                                            <tr className="bg-gray-50/50">
-                                                <td colSpan={7} className="p-4 border-b border-gray-100">
-                                                    <div className="space-y-3 text-xs text-gray-700">
-                                                        <div>
-                                                            <span className="font-bold uppercase text-gray-500 mb-1 block">Motivazione Completa</span>
-                                                            <p className="leading-relaxed bg-white p-3 rounded border border-gray-200">{payload.reason}</p>
-                                                        </div>
-
-                                                        {payload.trend_info && (
-                                                            <div>
-                                                                <span className="font-bold uppercase text-gray-500 mb-1 block">Dettagli Trend</span>
-                                                                <pre className="whitespace-pre-wrap font-mono bg-gray-800 text-gray-100 p-3 rounded text-[10px] overflow-x-auto">
-                                                                    {payload.trend_info}
-                                                                </pre>
-                                                            </div>
-                                                        )}
-
-                                                        <div className="flex gap-4 text-gray-500 pt-2 border-t border-gray-200 mt-2">
-                                                            <span>ID Op: <b>{op.id}</b></span>
-                                                            {payload._model_name && <span>Modello: <b>{payload._model_name}</b></span>}
-                                                            {payload.execution_result && (
-                                                                <span className={`${payload.execution_result.status === 'blocked' ? 'text-red-600 font-bold' : ''}`}>
-                                                                    Stato: {payload.execution_result.status}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        )}
-                                    </React.Fragment>
-                                </>
+                                    )}
+                                </React.Fragment>
                             )
                         })}
                     </tbody>
