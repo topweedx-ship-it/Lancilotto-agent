@@ -756,16 +756,19 @@ Trend Analysis for {symbol}:
                                     if pnl_usd is None and position:
                                         size = position.get("size", 0)
                                         # PnL calc: (Exit - Entry) * Size (for Long)
-                                        # For Short: (Entry - Exit) * Size
-                                        # Assuming standard linear contract logic or handled by exchange
-                                        # RiskManager uses direction aware logic, let's replicate or rely on backend
-                                        side = position.get("side", "long")
-                                        if side.lower() == "long":
-                                            pnl_usd = (exit_price - pos_entry_price) * size
+                                        # Only calculate if exit_price is valid (> 0)
+                                        if exit_price and exit_price > 0:
+                                            side = position.get("side", "long")
+                                            if side.lower() == "long":
+                                                pnl_usd = (exit_price - pos_entry_price) * size
+                                            else:
+                                                pnl_usd = (pos_entry_price - exit_price) * size
                                         else:
-                                            pnl_usd = (pos_entry_price - exit_price) * size
+                                            # If exit price is invalid, don't log a massive loss based on 0 price
+                                            logger.warning(f"⚠️ Invalid exit price ({exit_price}) for {symbol}, setting PnL to 0 temporary")
+                                            pnl_usd = 0
 
-                                    pnl_pct = ((exit_price - pos_entry_price) / pos_entry_price * 100) if pos_entry_price > 0 else 0
+                                    pnl_pct = ((exit_price - pos_entry_price) / pos_entry_price * 100) if pos_entry_price > 0 and exit_price > 0 else 0
 
                                     db_utils.close_trade(
                                         trade_id=bot_state.active_trades[symbol],

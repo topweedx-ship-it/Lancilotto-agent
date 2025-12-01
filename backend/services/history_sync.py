@@ -125,7 +125,7 @@ def _process_fill(cur, fill: Dict[str, Any]):
                 UPDATE executed_trades
                 SET status = 'closed',
                     exit_price = %s,
-                    exit_reason = 'synced_fill',
+                    exit_reason = 'manual',
                     pnl_usd = %s,
                     pnl_pct = %s,
                     closed_at = %s,
@@ -152,17 +152,54 @@ def _process_fill(cur, fill: Dict[str, Any]):
                     reconstructed_entry = (pnl / sz) + px
             
             # Check if this specific close already exists? 
-            # We don't have hl_close_order_id column. 
-            # We use timestamp and symbol to dedup closed trades.
+            # We check for recent closed trades to deduplicate OR fix bad data (exit_price=0)
             cur.execute(
                 """
-                SELECT id FROM executed_trades 
-                WHERE symbol = %s AND status = 'closed' AND ABS(EXTRACT(EPOCH FROM closed_at) * 1000 - %s) < 5000
+                SELECT id, exit_price, pnl_usd FROM executed_trades 
+                WHERE symbol = %s AND status = 'closed' 
+                AND ABS(EXTRACT(EPOCH FROM closed_at) * 1000 - %s) < 60000
+                ORDER BY closed_at DESC
+                LIMIT 1
                 """,
                 (coin, fill["time"])
             )
-            if cur.fetchone():
-                return # Already processed
+            existing = cur.fetchone()
+            
+            if existing:
+                trade_id, current_exit, current_pnl = existing
+                
+                # If exit_price is 0 or missing, it's a bad record from trading_engine -> FIX IT
+                if not current_exit or current_exit == 0 or (current_pnl and current_pnl < -0.9 * (px * sz) and pnl > -0.1 * (px * sz)):
+                    logger.info(f"🔧 Fixing bad trade data for {coin} (ID: {trade_id}) - Exit: {current_exit}->{px}, PnL: {current_pnl}->{pnl}")
+                    
+                    # Recalculate PnL % based on the ORIGINAL entry if possible, or leave as is if we can't
+                    # We need entry_price to calc pct. Let's fetch it.
+                    cur.execute("SELECT entry_price FROM executed_trades WHERE id = %s", (trade_id,))
+                    entry_row = cur.fetchone()
+                    entry_price = entry_row[0] if entry_row else 0
+                    
+                    pnl_pct = 0
+                    if entry_price and entry_price > 0:
+                        if direction == "long":
+                            pnl_pct = ((px - float(entry_price)) / float(entry_price)) * 100
+                        else:
+                            pnl_pct = ((float(entry_price) - px) / float(entry_price)) * 100
+                    
+                    cur.execute(
+                        """
+                        UPDATE executed_trades
+                        SET exit_price = %s,
+                            exit_reason = 'manual',
+                            pnl_usd = %s,
+                            pnl_pct = %s,
+                            fees_usd = COALESCE(fees_usd, 0) + %s
+                        WHERE id = %s
+                        """,
+                        (px, pnl, pnl_pct, fee, trade_id)
+                    )
+                    return # Fixed and done
+
+                return # Already processed and looks valid
 
             # Insert fully closed trade
             # We estimate created_at as fill_time - 1 minute if unknown
@@ -177,7 +214,7 @@ def _process_fill(cur, fill: Dict[str, Any]):
                     'close', %s, %s, %s, %s,
                     %s, %s, 0, 
                     1, %s, %s, %s,
-                    'closed', %s - INTERVAL '1 hour', %s, %s, 'synced_history'
+                    'closed', %s - INTERVAL '1 hour', %s, %s, 'manual'
                 )
                 """,
                 (coin, direction, sz, reconstructed_entry, px, pnl, oid, px, px * sz, fill_time, fill_time, fee)
