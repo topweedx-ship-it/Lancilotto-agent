@@ -134,11 +134,18 @@ class CoinGeckoDataProvider:
                 "order": "market_cap_desc",
                 "per_page": 250,
                 "page": 1,
-                "sparkline": False
+                "sparkline": "false"
             }
 
             if self.api_key:
-                params["x_cg_pro_api_key"] = self.api_key
+                # Check if it's a demo key (starts with 'CG-') or pro key
+                if self.api_key.startswith("CG-"):
+                    # Demo keys use a different header or param, usually x_cg_demo_api_key header
+                    # But per docs, can be passed as query param 'x_cg_demo_api_key'
+                    params["x_cg_demo_api_key"] = self.api_key
+                else:
+                    # Pro keys use x_cg_pro_api_key
+                    params["x_cg_pro_api_key"] = self.api_key
 
             response = requests.get(
                 f"{self.base_url}/coins/markets",
