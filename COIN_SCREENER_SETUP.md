@@ -10,7 +10,7 @@ Edit `main.py` CONFIG:
 CONFIG = {
     ...
     "SCREENING_ENABLED": True,  # ← Set to True
-    "TOP_N_COINS": 5,           # Number of coins to trade
+    "TOP_N_COINS": 10,          # Number of coins to trade
     ...
 }
 ```
@@ -112,7 +112,7 @@ Coins must meet ALL these requirements:
 ```python
 CONFIG = {
     "SCREENING_ENABLED": True,
-    "TOP_N_COINS": 5,                        # How many to select
+    "TOP_N_COINS": 10,                       # How many to select
     "FALLBACK_TICKERS": ["BTC", "ETH", "SOL"], # Used if screening fails
     ...
 }
@@ -301,7 +301,7 @@ raw_data             JSONB
 screener = CoinScreener(
     testnet=True,
     coingecko_api_key=None,
-    top_n=5,
+    top_n=10,
     filter_config=None,
     scoring_weights=None,
     cache_enabled=True
@@ -314,7 +314,7 @@ result = screener.run_full_screening()
 result = screener.update_scores()
 
 # Get cached
-coins = screener.get_selected_coins(top_n=5)
+coins = screener.get_selected_coins(top_n=10)
 
 # Check rebalance
 if screener.should_rebalance():

@@ -11,6 +11,8 @@ Trading Agent è un progetto open source ispirato a [Alpha Arena](https://nof1.a
 - **Modularità**: ogni componente (news, sentiment, indicatori, whale alert, forecasting) è gestito da moduli separati, facilmente estendibili.
 - **Ispirazione Alpha Arena**: il progetto prende spunto dall'approccio competitivo e AI-driven di Alpha Arena, con l'obiettivo di creare agenti sempre più performanti.
 - **Gestione multi-modello AI**: supporta GPT-5.1, GPT-4o-mini e DeepSeek con selezione dinamica.
+- **Coin Screener Dinamico**: seleziona automaticamente le migliori coin in base a filtri quantitativi (volume, momentum, volatilità).
+- **Analisi Manuale**: possibilità di eseguire analisi on-demand su specifiche coin senza interrompere il bot.
 
 ## 📊 Dashboard Web
 
@@ -74,6 +76,24 @@ Il sistema supporta automaticamente:
 - **DeepSeek** - Modello alternativo, richiede `DEEPSEEK_API_KEY`
 
 Il sistema rileva automaticamente quali modelli sono disponibili in base alle API keys configurate. Puoi selezionare il modello dal frontend o tramite API.
+
+## Utilizzo Avanzato
+
+### Analisi Manuale
+
+È possibile eseguire un'analisi on-demand su una specifica criptovaluta per verificare le condizioni di mercato o testare l'AI senza dover attendere il ciclo automatico del bot.
+
+```bash
+cd backend
+python manual_analysis.py <SYMBOL>
+```
+
+Esempio:
+```bash
+python manual_analysis.py ETH
+```
+
+Questo script eseguirà l'intero processo decisionale (fetch dati, analisi tecnica, news, sentiment, decisione AI, trend check) e mostrerà il risultato nei log.
 
 ## Video di presentazione
 

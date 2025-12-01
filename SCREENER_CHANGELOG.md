@@ -231,7 +231,7 @@ COINGECKO_API_KEY=your_api_key
 # main.py
 CONFIG = {
     "SCREENING_ENABLED": True,
-    "TOP_N_COINS": 5,
+    "TOP_N_COINS": 10,
     ...
 }
 ```
@@ -241,7 +241,7 @@ CONFIG = {
 ```python
 from coin_screener import CoinScreener
 
-screener = CoinScreener(testnet=True, top_n=5)
+screener = CoinScreener(testnet=True, top_n=10)
 result = screener.run_full_screening()
 
 for coin in result.selected_coins:
