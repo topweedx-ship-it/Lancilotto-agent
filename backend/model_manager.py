@@ -62,13 +62,22 @@ AVAILABLE_MODELS: Dict[str, ModelConfig] = {
         supports_reasoning=False
     ),
     "deepseek": ModelConfig(
-        name="DeepSeek",
+        name="DeepSeek V3",
         provider=ModelProvider.DEEPSEEK,
         model_id="deepseek-chat",
         api_key_env="DEEPSEEK_API_KEY",
         base_url="https://api.deepseek.com",
-        supports_json_schema=False,  # DeepSeek non supporta json_schema, usa json_object invece
+        supports_json_schema=False,  # DeepSeek non supporta json_schema nativo, usa json_object
         supports_reasoning=False
+    ),
+    "deepseek-reasoner": ModelConfig(
+        name="DeepSeek R1 (Reasoner)",
+        provider=ModelProvider.DEEPSEEK,
+        model_id="deepseek-reasoner",
+        api_key_env="DEEPSEEK_API_KEY",
+        base_url="https://api.deepseek.com",
+        supports_json_schema=False,
+        supports_reasoning=True
     )
 }
 
