@@ -2,6 +2,7 @@
 Hyperliquid data provider for coin screening
 """
 import logging
+import json
 from typing import Dict, List, Optional
 from datetime import datetime, timezone, timedelta
 import pandas as pd
@@ -97,19 +98,59 @@ class HyperliquidDataProvider:
 
     def get_available_symbols(self) -> List[str]:
         """
-        Get list of all available trading symbols.
+        Get list of available trading symbols, filtered by config/top_coins.json.
         
         Returns:
             List of symbol strings (e.g., ['BTC', 'ETH', 'SOL'])
         """
         try:
+            # Fetch metadata from Hyperliquid
             meta = self._retry_api_call(self.info.meta)
-            symbols = [asset['name'] for asset in meta['universe']]
-            logger.info(f"Found {len(symbols)} available symbols on Hyperliquid")
-            return symbols
+            all_universe_symbols = {asset['name'] for asset in meta['universe']}
+            
+            # Load filtered list
+            top_coins = []
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            # Try finding config relative to this file: backend/coin_screener/data_providers/ -> ../../../config/top_coins.json
+            config_path = os.path.join(current_dir, "../../../config/top_coins.json")
+            
+            try:
+                if os.path.exists(config_path):
+                    with open(config_path, 'r') as f:
+                        top_coins = json.load(f)
+                        logger.info(f"Loaded {len(top_coins)} coins from {config_path}")
+                else:
+                    # Try relative to CWD just in case
+                    alt_path = "config/top_coins.json"
+                    if os.path.exists(alt_path):
+                        with open(alt_path, 'r') as f:
+                            top_coins = json.load(f)
+                            logger.info(f"Loaded {len(top_coins)} coins from {alt_path}")
+                    else:
+                        logger.warning(f"top_coins.json not found at {config_path} or {alt_path}")
+            except Exception as e:
+                logger.error(f"Error loading top_coins.json: {e}")
+
+            # Fallback if list is empty or file missing
+            if not top_coins:
+                logger.warning("No coins loaded from config. Using default fallback list.")
+                top_coins = ["BTC", "ETH", "SOL", "BNB", "XRP", "ADA", "AVAX", "DOGE", "DOT", "TRX"]
+
+            # Filter: only return coins that are actually available on Hyperliquid
+            # This also respects the user's list order if needed, or we can sort
+            filtered_symbols = [coin for coin in top_coins if coin in all_universe_symbols]
+            
+            if not filtered_symbols:
+                 logger.error("No valid symbols found after filtering! Defaulting to BTC, ETH.")
+                 return ["BTC", "ETH"]
+
+            logger.info(f"Selected {len(filtered_symbols)} symbols for processing")
+            return filtered_symbols
+
         except Exception as e:
             logger.error(f"Error fetching available symbols: {e}")
-            return []
+            # Safe fallback
+            return ["BTC", "ETH"]
 
     def get_coin_metrics(self, symbol: str, current_price: Optional[float] = None) -> Optional[CoinMetrics]:
         """
