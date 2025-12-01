@@ -376,13 +376,38 @@ class HyperLiquidTrader:
         Returns:
             Dict con balance_usd (total equity), perps_balance, spot_balance e open_positions
         """
-        try:
-            # Usa master_account_address per le chiamate di lettura (Info)
-            # Il master account è quello che contiene i fondi
-            data = self.info.user_state(self.master_account_address)
-        except Exception as e:
-            print(f"❌ Errore recupero user_state: {e}")
-            raise
+        import time
+        from hyperliquid.utils.error import ClientError
+
+        max_retries = 3
+        retry_delay = 2  # seconds
+
+        data = {}
+        
+        # Retry logic per user_state (Perps)
+        for attempt in range(max_retries):
+            try:
+                # Usa master_account_address per le chiamate di lettura (Info)
+                # Il master account è quello che contiene i fondi
+                data = self.info.user_state(self.master_account_address)
+                break # Success
+            except ClientError as e:
+                error_args = e.args[0] if e.args else None
+                # Check for 429 Too Many Requests
+                if isinstance(error_args, tuple) and len(error_args) > 0 and error_args[0] == 429:
+                    if attempt < max_retries - 1:
+                        wait_time = retry_delay * (attempt + 1)
+                        print(f"⚠️ Rate limit (429) su user_state, retry in {wait_time}s...")
+                        time.sleep(wait_time)
+                        continue
+                print(f"❌ Errore recupero user_state: {e}")
+                raise
+            except Exception as e:
+                print(f"❌ Errore recupero user_state: {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delay)
+                    continue
+                raise
         
         # Estrai balance da marginSummary (Perps Account)
         margin_summary = data.get("marginSummary", {})

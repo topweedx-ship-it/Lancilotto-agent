@@ -641,6 +641,50 @@ async def get_token_history(days: int = Query(30, ge=1, le=365, description="Num
         raise HTTPException(status_code=500, detail=f"Errore nel recupero storico: {str(e)}")
 
 
+from collections import deque
+from market_data.aggregator import MarketDataAggregator
+
+# =====================
+# Market Data API Endpoints
+# =====================
+
+@app.get("/api/market-data/aggregate")
+async def get_market_data_aggregate(symbol: str = "BTC"):
+    """
+    Restituisce dati di mercato aggregati per un symbol specifico.
+    """
+    try:
+        aggregator = MarketDataAggregator()
+        snapshot = await aggregator.fetch_market_snapshot(symbol)
+        return snapshot
+    except Exception as e:
+        logger.error(f"Errore nel recupero market data: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Errore interno: {str(e)}")
+
+
+# =====================
+# System Logs API Endpoints
+# =====================
+
+@app.get("/api/system-logs")
+async def get_system_logs(lines: int = Query(100, ge=1, le=1000)):
+    """
+    Restituisce le ultime N righe del file di log di sistema.
+    """
+    log_file = "trading_agent.log"
+    try:
+        if not os.path.exists(log_file):
+             return {"logs": [], "message": "Log file not found"}
+        
+        with open(log_file, "r", encoding="utf-8") as f:
+            # Leggi le ultime N righe usando deque
+            last_lines = deque(f, maxlen=lines)
+            return {"logs": list(last_lines)}
+    except Exception as e:
+        logger.error(f"Errore nella lettura dei log: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Errore interno: {str(e)}")
+
+
 # Mount static files for frontend
 static_dir = os.path.join(os.path.dirname(__file__), "static")
 if os.path.exists(static_dir):

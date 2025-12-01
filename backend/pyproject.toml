@@ -27,6 +27,7 @@ dependencies = [
     "statsmodels",
     "torch",
     "scikit-learn",
+    "PyYAML",
 ]
 
 [tool.uv]

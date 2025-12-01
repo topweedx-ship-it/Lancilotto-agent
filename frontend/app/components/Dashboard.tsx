@@ -3,6 +3,10 @@ import { EquityCurve } from './EquityCurve'
 import { OpenPositions } from './OpenPositions'
 import { BotOperations } from './BotOperations'
 import { TokenUsage } from './TokenUsage'
+import { ClosedPositions } from './ClosedPositions'
+import { MarketData } from './MarketData'
+import { SystemLogs } from './SystemLogs'
+import { PerformanceOverview } from './PerformanceOverview'
 
 interface BalancePoint {
   timestamp: string
@@ -34,7 +38,6 @@ interface BotOperation {
   system_prompt: string | null
 }
 
-// Usa il proxy di Vite se disponibile, altrimenti usa l'URL diretto
 const API_BASE_URL = import.meta.env.VITE_API_URL || ''
 
 export function Dashboard() {
@@ -49,22 +52,16 @@ export function Dashboard() {
     setError(null)
 
     try {
-      const baseUrl = API_BASE_URL || '' // Se vuoto, usa il proxy di Vite
+      const baseUrl = API_BASE_URL || ''
       const [balanceRes, positionsRes, operationsRes] = await Promise.all([
         fetch(`${baseUrl}/api/balance`),
         fetch(`${baseUrl}/api/open-positions`),
-        fetch(`${baseUrl}/api/bot-operations?limit=50`),
+        fetch(`${baseUrl}/api/bot-operations?limit=10`), // Limit to 10 as per screenshot text
       ])
 
-      if (!balanceRes.ok) {
-        throw new Error(`Errore nel caricamento del saldo: ${balanceRes.statusText}`)
-      }
-      if (!positionsRes.ok) {
-        throw new Error(`Errore nel caricamento delle posizioni: ${positionsRes.statusText}`)
-      }
-      if (!operationsRes.ok) {
-        throw new Error(`Errore nel caricamento delle operazioni: ${operationsRes.statusText}`)
-      }
+      if (!balanceRes.ok) throw new Error(`Errore nel caricamento del saldo: ${balanceRes.statusText}`)
+      if (!positionsRes.ok) throw new Error(`Errore nel caricamento delle posizioni: ${positionsRes.statusText}`)
+      if (!operationsRes.ok) throw new Error(`Errore nel caricamento delle operazioni: ${operationsRes.statusText}`)
 
       const [balanceData, positionsData, operationsData] = await Promise.all([
         balanceRes.json(),
@@ -85,17 +82,14 @@ export function Dashboard() {
 
   useEffect(() => {
     fetchData()
-    
-    // Poll every 30 seconds to keep data fresh
     const intervalId = setInterval(fetchData, 30000)
-    
     return () => clearInterval(intervalId)
   }, [])
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <p className="text-muted-foreground">Caricamento statistiche...</p>
+        <p className="text-muted-foreground animate-pulse">Caricamento dashboard...</p>
       </div>
     )
   }
@@ -103,11 +97,11 @@ export function Dashboard() {
   if (error) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <p className="text-red-500 mb-2">Errore: {error}</p>
+        <div className="text-center p-6 bg-red-50 rounded-lg border border-red-100">
+          <p className="text-red-500 mb-4">Errore: {error}</p>
           <button
             onClick={fetchData}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
           >
             Riprova
           </button>
@@ -117,68 +111,124 @@ export function Dashboard() {
   }
 
   return (
-    <div className="container mx-auto max-w-[1180px] px-4 sm:px-6 py-4 sm:py-6">
-      <div className="flex justify-end mb-2">
+    <div className="container mx-auto max-w-[1280px] px-4 sm:px-6 py-6 space-y-6">
+
+      {/* Header Actions */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Trading Agent Dashboard</h1>
+          <p className="text-sm text-muted-foreground">Monitoraggio in tempo reale</p>
+        </div>
         <button
           onClick={fetchData}
-          className="rounded-full border border-gray-300 px-3 sm:px-4 py-1.5 text-xs sm:text-sm bg-white text-gray-900 hover:border-blue-600 hover:text-blue-600 hover:bg-blue-50 inline-flex items-center gap-1.5"
+          className="rounded-full border border-gray-200 px-4 py-2 text-sm font-medium bg-white text-gray-700 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 inline-flex items-center gap-2 transition-all shadow-sm"
         >
-          🔄 <span className="hidden xs:inline">Aggiorna tutto</span>
+          <span>Aggiorna tutto</span>
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1.8fr_1fr] gap-4 sm:gap-5 items-start">
-        {/* Colonna sinistra: equity curve + posizioni aperte */}
-        <div className="flex flex-col gap-3 sm:gap-4">
-          <article className="p-3 sm:p-4 rounded-lg border border-gray-200 bg-white shadow-sm">
-            <div className="mb-2">
-              <h2 className="text-sm sm:text-base flex items-center gap-2 mb-0.5 text-gray-900">
+      {/* Main Grid Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1.8fr_1fr] gap-6 items-start">
+
+        {/* Left Column */}
+        <div className="space-y-6">
+
+          {/* Performance Overview */}
+          <PerformanceOverview balance={balance} />
+
+          {/* Equity Curve */}
+          <article className="p-6 rounded-xl border border-gray-200 bg-white shadow-sm">
+            <div className="mb-4">
+              <h2 className="text-lg font-bold flex items-center gap-2 mb-1 text-gray-900">
                 <span className="w-2 h-2 rounded-full bg-blue-600"></span>
                 Equity curve
               </h2>
-              <p className="text-xs text-muted-foreground mb-2 sm:mb-3">
+              <p className="text-sm text-muted-foreground">
                 Valore del conto nel tempo, dalla prima osservazione all'ultima disponibile.
               </p>
             </div>
             <EquityCurve data={balance} />
           </article>
 
-          <article className="p-3 sm:p-4 rounded-lg border border-gray-200 bg-white shadow-sm">
-            <div className="mb-2">
-              <h2 className="text-sm sm:text-base flex items-center gap-2 mb-0.5 text-gray-900">
+          {/* Open Positions */}
+          <article className="p-6 rounded-xl border border-gray-200 bg-white shadow-sm">
+            <div className="mb-4">
+              <h2 className="text-lg font-bold flex items-center gap-2 mb-1 text-gray-900">
                 <span className="w-2 h-2 rounded-full bg-blue-600"></span>
                 Posizioni aperte
               </h2>
-              <p className="text-xs text-muted-foreground mb-2 sm:mb-3">
+              <p className="text-sm text-muted-foreground">
                 Snapshot più recente delle posizioni correnti, con PnL colorato.
               </p>
             </div>
             <OpenPositions positions={openPositions} />
           </article>
 
-          {/* Token Usage Section */}
-          <article className="p-3 sm:p-4 rounded-lg border border-gray-200 bg-white shadow-sm">
+          {/* Market Data Widget */}
+          <MarketData />
+
+          {/* Closed Positions (Estimated) */}
+          <article className="p-6 rounded-xl border border-gray-200 bg-white shadow-sm">
+            <div className="mb-4">
+              <h2 className="text-lg font-bold flex items-center gap-2 mb-1 text-gray-900">
+                <span className="w-2 h-2 rounded-full bg-gray-500"></span>
+                Posizioni chiuse (Stimate)
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Ultime posizioni chiuse rilevate dal confronto degli snapshot.
+              </p>
+            </div>
+            <ClosedPositions />
+          </article>
+
+          {/* System Logs */}
+          <article className="p-6 rounded-xl border border-gray-200 bg-white shadow-sm">
+            <div className="mb-4">
+              <h2 className="text-lg font-bold flex items-center gap-2 mb-1 text-gray-900">
+                <span className="w-2 h-2 rounded-full bg-gray-800"></span>
+                System Logs
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Log di sistema in tempo reale per debug.
+              </p>
+            </div>
+            <SystemLogs />
+          </article>
+
+          {/* Token Usage */}
+          <article className="p-6 rounded-xl border border-gray-200 bg-white shadow-sm">
             <TokenUsage />
           </article>
+
         </div>
 
-        {/* Colonna destra: ultime operazioni dell'agente */}
-        <aside className="p-3 sm:p-4 rounded-lg border border-gray-200 bg-white shadow-sm">
-          <div className="mb-2">
-            <h2 className="text-sm sm:text-base flex items-center gap-2 mb-0.5 text-gray-900">
-              <span className="w-2 h-2 rounded-full bg-blue-600"></span>
-              Operazioni recenti
-            </h2>
-            <p className="text-xs text-muted-foreground mb-2 sm:mb-3">
-              Ultime 50 operazioni loggate dall'agente, con ragionamento e prompt.
-            </p>
+        {/* Right Column: Recent Operations */}
+        <aside className="p-6 rounded-xl border border-gray-200 bg-white shadow-sm sticky top-6">
+          <div className="mb-4 flex justify-between items-start">
+            <div>
+              <h2 className="text-lg font-bold flex items-center gap-2 mb-1 text-gray-900">
+                <span className="w-2 h-2 rounded-full bg-blue-600"></span>
+                Operazioni recenti
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Ultime 10 operazioni loggate dall'agente.
+              </p>
+            </div>
+            <button
+              onClick={fetchData}
+              className="p-1.5 hover:bg-gray-100 rounded-full text-gray-400 hover:text-blue-600 transition-colors"
+              title="Aggiorna lista"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+            </button>
           </div>
-          <div className="max-h-[60vh] lg:max-h-[72vh] overflow-y-auto scrollbar-thin">
+          <div className="max-h-[calc(100vh-200px)] overflow-y-auto scrollbar-thin pr-1">
             <BotOperations operations={botOperations} />
           </div>
         </aside>
+
       </div>
     </div>
   )
 }
-

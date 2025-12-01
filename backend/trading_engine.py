@@ -12,10 +12,15 @@ from typing import Optional
 from dotenv import load_dotenv
 
 # Setup logging PRIMA di tutto
+log_filename = "trading_agent.log"
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s | %(levelname)s | %(name)s | %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
+    datefmt='%Y-%m-%d %H:%M:%S',
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler(log_filename, mode='a', encoding='utf-8')
+    ]
 )
 logger = logging.getLogger(__name__)
 
