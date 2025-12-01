@@ -15,6 +15,7 @@ from .models import (
 from .filters import HardFilters
 from .scoring import CoinScorer
 from .data_providers import HyperliquidDataProvider, CoinGeckoDataProvider, DataCache
+from hyperliquid.utils.error import ClientError
 
 logger = logging.getLogger(__name__)
 
@@ -280,11 +281,45 @@ class CoinScreener:
 
         # Fetch Hyperliquid data
         logger.info(f"Fetching Hyperliquid data for {len(symbols)} symbols...")
+        logger.warning("⚠️ Rate limiting severo: usando delay estesi tra le chiamate (2-3s per simbolo)")
         hl_metrics = {}
-        for symbol in symbols:
-            metrics = self.hl_provider.get_coin_metrics(symbol)
-            if metrics:
-                hl_metrics[symbol] = metrics
+        import time
+        consecutive_429 = 0  # Track consecutive 429 errors
+        
+        for i, symbol in enumerate(symbols):
+            # Add delay between requests to avoid rate limiting
+            if i > 0:
+                if consecutive_429 >= 3:
+                    # Se abbiamo ricevuto molti 429 consecutivi, aspettiamo più a lungo
+                    wait_time = 30  # 30 secondi di pausa
+                    logger.warning(f"⚠️ Molti errori 429 consecutivi ({consecutive_429}), pausa di {wait_time}s...")
+                    time.sleep(wait_time)
+                    consecutive_429 = 0  # Reset counter
+                elif i % 10 == 0:  # Every 10 requests, add a longer delay
+                    logger.info(f"Processed {i}/{len(symbols)} symbols, pausing to avoid rate limits...")
+                    time.sleep(10)  # 10 second pause every 10 requests
+                else:
+                    time.sleep(2)  # 2 second delay between requests (aumentato da 0.5s)
+            
+            try:
+                metrics = self.hl_provider.get_coin_metrics(symbol)
+                if metrics:
+                    hl_metrics[symbol] = metrics
+                    consecutive_429 = 0  # Reset on success
+            except ClientError as e:
+                error_args = e.args[0] if e.args else None
+                if isinstance(error_args, tuple) and len(error_args) > 0 and error_args[0] == 429:
+                    consecutive_429 += 1
+                    logger.warning(f"Rate limit (429) per {symbol} (consecutivi: {consecutive_429})")
+                    # Se riceviamo 429, aspettiamo prima di continuare
+                    if consecutive_429 < 3:
+                        time.sleep(5)  # 5 secondi di pausa dopo un 429
+                else:
+                    logger.warning(f"Failed to fetch metrics for {symbol}: {e}")
+            except Exception as e:
+                logger.warning(f"Failed to fetch metrics for {symbol}: {e}")
+                # Continue with next symbol instead of failing completely
+                continue
 
         # Fetch CoinGecko data
         logger.info("Fetching CoinGecko market data...")

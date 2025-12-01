@@ -257,22 +257,41 @@ def trading_cycle() -> None:
                 # Check se serve rebalance completo
                 if screener.should_rebalance():
                     logger.info("🔄 Rebalance settimanale: eseguo screening completo...")
-                    result = screener.run_full_screening()
+                    try:
+                        result = screener.run_full_screening()
 
-                    # Log su database
-                    from coin_screener.db_utils import log_screening_result
-                    with db_utils.get_connection() as conn:
-                        log_screening_result(conn, result)
+                        # Log su database
+                        from coin_screener.db_utils import log_screening_result
+                        with db_utils.get_connection() as conn:
+                            log_screening_result(conn, result)
+                    except Exception as e:
+                        # Se lo screening completo fallisce (es. rate limit), prova a usare dati cached
+                        logger.warning(f"⚠️ Screening completo fallito: {e}")
+                        logger.info("📋 Provo a usare dati cached o fallback...")
+                        selected_coins = screener.get_selected_coins(top_n=CONFIG["TOP_N_COINS"])
+                        if selected_coins:
+                            tickers = [coin.symbol for coin in selected_coins]
+                            logger.info(f"🎯 Trading su coin cached: {', '.join(tickers)}")
+                        else:
+                            raise  # Se non ci sono dati cached, usa fallback
                 else:
                     # Update giornaliero
                     logger.info("📊 Update giornaliero scores...")
-                    result = screener.update_scores()
+                    try:
+                        result = screener.update_scores()
+                    except Exception as e:
+                        # Se l'update fallisce, usa dati cached
+                        logger.warning(f"⚠️ Update scores fallito: {e}, uso dati cached")
+                        pass  # Continua con get_selected_coins che userà cache
 
-                # Ottieni top coins
+                # Ottieni top coins (da cache se disponibile)
                 selected_coins = screener.get_selected_coins(top_n=CONFIG["TOP_N_COINS"])
-                tickers = [coin.symbol for coin in selected_coins]
-
-                logger.info(f"🎯 Trading su: {', '.join(tickers)}")
+                if selected_coins:
+                    tickers = [coin.symbol for coin in selected_coins]
+                    logger.info(f"🎯 Trading su: {', '.join(tickers)}")
+                else:
+                    # Nessun dato disponibile, usa fallback
+                    raise ValueError("Nessun dato disponibile dal screener")
 
             except Exception as e:
                 logger.error(f"❌ Errore screening: {e}", exc_info=True)

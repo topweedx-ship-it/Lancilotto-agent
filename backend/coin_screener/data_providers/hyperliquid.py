@@ -59,8 +59,9 @@ class HyperliquidDataProvider:
         logger.info(f"Initialized HyperliquidDataProvider ({'testnet' if testnet else 'mainnet'})")
     
 
-    def _retry_api_call(self, func, *args, max_retries=3, **kwargs):
+    def _retry_api_call(self, func, *args, max_retries=5, **kwargs):
         """Helper to retry API calls on rate limit"""
+        retry_delay = 3  # seconds
         for attempt in range(max_retries):
             try:
                 return func(*args, **kwargs)
@@ -68,16 +69,19 @@ class HyperliquidDataProvider:
                 error_args = e.args[0] if e.args else None
                 if isinstance(error_args, tuple) and len(error_args) > 0 and error_args[0] == 429:
                     if attempt < max_retries - 1:
-                        wait_time = 2 * (attempt + 1)
-                        logger.warning(f"Rate limit (429) in data provider, retrying in {wait_time}s...")
+                        wait_time = retry_delay * (2 ** attempt)  # Exponential backoff: 3, 6, 12, 24, 48s
+                        logger.warning(f"Rate limit (429) in data provider, retrying in {wait_time}s... (attempt {attempt + 1}/{max_retries})")
                         time.sleep(wait_time)
                         continue
+                # Se non è 429 o abbiamo esaurito i retry, loggiamo e rilanciamo
                 logger.error(f"API Error: {e}")
                 raise
             except Exception as e:
                 logger.error(f"Unexpected error in API call: {e}")
                 if attempt < max_retries - 1:
-                    time.sleep(1)
+                    wait_time = retry_delay * (attempt + 1)
+                    logger.warning(f"Retrying in {wait_time}s... (attempt {attempt + 1}/{max_retries})")
+                    time.sleep(wait_time)
                     continue
                 raise
         return None
