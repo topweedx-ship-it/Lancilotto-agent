@@ -62,7 +62,7 @@ CONFIG = {
 
     # Coin Screening
     "SCREENING_ENABLED": True,  # Set to True to enable dynamic coin selection
-    "TOP_N_COINS": 10,
+    "TOP_N_COINS": 15,
     "REBALANCE_DAY": "sunday",
     "FALLBACK_TICKERS": ["BTC", "ETH", "SOL"],  # Used if screening fails or disabled
 

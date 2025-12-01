@@ -375,6 +375,15 @@ class HyperLiquidTrader:
         if res is None:
             return {"status": "error", "message": "market_open returned None"}
         
+        # Check for explicit error status from Hyperliquid
+        if isinstance(res, dict) and res.get("status") == "err":
+            error_data = res.get("response", {}).get("data", "")
+            return {
+                "status": "error", 
+                "message": f"Exchange Error: {error_data}",
+                "raw": res
+            }
+        
         return res
 
     # ----------------------------------------------------------------------
@@ -752,6 +761,17 @@ class HyperLiquidTrader:
             for symbol in symbols
             if symbol in mids
         }
+
+    def get_user_fills(self) -> list:
+        """
+        Fetch user's trade history (fills).
+        Returns list of fills containing: coin, dir, px, sz, side, time, fee, etc.
+        """
+        try:
+            return self.info.user_fills(self.master_account_address)
+        except Exception as e:
+            print(f"❌ Errore recupero user_fills: {e}")
+            return []
 
     # ----------------------------------------------------------------------
     #                           UTILITY DEBUG

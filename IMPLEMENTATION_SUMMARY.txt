@@ -52,7 +52,7 @@ Documentation
    Edit main.py:
    CONFIG = {
        "SCREENING_ENABLED": True,  # ← Change to True
-       "TOP_N_COINS": 10,
+       "TOP_N_COINS": 15,
        ...
    }
 
@@ -137,7 +137,7 @@ Basic (main.py)
 ---------------
 CONFIG = {
     "SCREENING_ENABLED": False,
-    "TOP_N_COINS": 10,
+    "TOP_N_COINS": 15,
     "FALLBACK_TICKERS": ["BTC", "ETH", "SOL"],
     ...
 }

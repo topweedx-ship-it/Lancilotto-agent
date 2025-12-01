@@ -822,6 +822,8 @@ def on_startup():
                     """Aggiorna lo stato dell'account ogni 30 secondi"""
                     import time
                     import db_utils
+                    from services.history_sync import sync_trades_from_hyperliquid
+                    
                     # Attendi inizializzazione
                     while not bot_state.initialized:
                         time.sleep(1)
@@ -832,7 +834,11 @@ def on_startup():
                             if bot_state.trader:
                                 account_status = bot_state.trader.get_account_status()
                                 db_utils.log_account_status(account_status)
-                                # logger.debug("✅ Account status aggiornato (background)")
+                                
+                                # Sync trades history from Hyperliquid
+                                sync_trades_from_hyperliquid(bot_state.trader)
+                                
+                                # logger.debug("✅ Account status e history aggiornati (background)")
                         except Exception as e:
                             logger.warning(f"⚠️ Errore aggiornamento account status: {e}")
                         

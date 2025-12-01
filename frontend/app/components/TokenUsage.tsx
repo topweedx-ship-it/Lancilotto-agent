@@ -153,8 +153,8 @@ export function TokenUsage() {
     ],
   }
 
-  // Chart data per history (Line)
-  const historyChartData = {
+  // Chart data per Costi (Line)
+  const costChartData = {
     labels: history.map((h) => new Date(h.date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })),
     datasets: [
       {
@@ -165,8 +165,14 @@ export function TokenUsage() {
         borderWidth: 2,
         pointRadius: 3,
         tension: 0.3,
-        yAxisID: 'y',
       },
+    ],
+  }
+
+  // Chart data per Token (Line)
+  const tokenChartData = {
+    labels: history.map((h) => new Date(h.date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })),
+    datasets: [
       {
         label: 'Token (K)',
         data: history.map((h) => h.tokens / 1000),
@@ -175,12 +181,11 @@ export function TokenUsage() {
         borderWidth: 2,
         pointRadius: 3,
         tension: 0.3,
-        yAxisID: 'y1',
       },
     ],
   }
 
-  const historyOptions = {
+  const commonOptions = {
     responsive: true,
     maintainAspectRatio: false,
     interaction: {
@@ -193,17 +198,26 @@ export function TokenUsage() {
         position: 'top' as const,
         labels: { font: { size: 10 }, boxWidth: 20 },
       },
+    },
+    scales: {
+      x: {
+        ticks: { font: { size: 10 } },
+        grid: { display: false },
+      },
+    },
+  }
+
+  const costOptions = {
+    ...commonOptions,
+    plugins: {
+      ...commonOptions.plugins,
       tooltip: {
         callbacks: {
           label: function (context: any) {
             let label = context.dataset.label || ''
             if (label) label += ': '
             if (context.parsed.y !== null) {
-              if (context.dataset.label === 'Costo ($)') {
-                label += '$' + context.parsed.y.toFixed(4)
-              } else {
-                label += context.parsed.y.toFixed(1) + 'K'
-              }
+              label += '$' + context.parsed.y.toFixed(4)
             }
             return label
           },
@@ -211,10 +225,10 @@ export function TokenUsage() {
       },
     },
     scales: {
+      ...commonOptions.scales,
       y: {
         type: 'linear' as const,
         display: true,
-        position: 'left' as const,
         ticks: {
           font: { size: 10 },
           callback: function (value: any) {
@@ -223,21 +237,38 @@ export function TokenUsage() {
         },
         grid: { color: 'rgba(148, 163, 184, 0.2)' },
       },
-      y1: {
+    },
+  }
+
+  const tokenOptions = {
+    ...commonOptions,
+    plugins: {
+      ...commonOptions.plugins,
+      tooltip: {
+        callbacks: {
+          label: function (context: any) {
+            let label = context.dataset.label || ''
+            if (label) label += ': '
+            if (context.parsed.y !== null) {
+              label += context.parsed.y.toFixed(1) + 'K'
+            }
+            return label
+          },
+        },
+      },
+    },
+    scales: {
+      ...commonOptions.scales,
+      y: {
         type: 'linear' as const,
         display: true,
-        position: 'right' as const,
-        grid: { drawOnChartArea: false },
         ticks: {
           font: { size: 10 },
           callback: function (value: any) {
             return value + 'K'
           },
         },
-      },
-      x: {
-        ticks: { font: { size: 10 } },
-        grid: { display: false },
+        grid: { color: 'rgba(148, 163, 184, 0.2)' },
       },
     },
   }
@@ -341,12 +372,24 @@ export function TokenUsage() {
           )}
         </div>
 
-        {/* Trend ultimi 7 giorni */}
+        {/* Trend Costi */}
         <div className="p-4 rounded-lg border border-gray-200 bg-white">
-          <h3 className="text-sm font-semibold mb-3">Trend Ultimi 7 Giorni</h3>
+          <h3 className="text-sm font-semibold mb-3">Trend Costi (7gg)</h3>
           {history.length > 0 ? (
             <div className="h-[200px] sm:h-[250px]">
-              <Line data={historyChartData} options={historyOptions} />
+              <Line data={costChartData} options={costOptions} />
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-8">Nessuno storico disponibile</p>
+          )}
+        </div>
+
+        {/* Trend Token */}
+        <div className="p-4 rounded-lg border border-gray-200 bg-white lg:col-span-2">
+          <h3 className="text-sm font-semibold mb-3">Trend Token (7gg)</h3>
+          {history.length > 0 ? (
+            <div className="h-[200px] sm:h-[250px]">
+              <Line data={tokenChartData} options={tokenOptions} />
             </div>
           ) : (
             <p className="text-sm text-muted-foreground text-center py-8">Nessuno storico disponibile</p>

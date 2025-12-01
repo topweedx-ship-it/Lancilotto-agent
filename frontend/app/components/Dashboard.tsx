@@ -8,6 +8,7 @@ import { SystemLogs } from './SystemLogs'
 import { PerformanceOverview } from './PerformanceOverview'
 import { SystemConfig } from './SystemConfig'
 import { DecisionViewer } from './DecisionViewer'
+import { DecisionHistory } from './DecisionHistory'
 
 interface BalancePoint {
   timestamp: string
@@ -217,15 +218,29 @@ export function Dashboard() {
             <DecisionViewer />
           </article>
 
-          {/* Closed Positions (Estimated) */}
+          {/* Decision History Table */}
+          <article className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="p-6 border-b border-gray-100">
+              <h2 className="text-lg font-bold flex items-center gap-2 text-gray-900">
+                <span className="w-2 h-2 rounded-full bg-purple-600"></span>
+                Cronologia Decisioni AI
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Storico delle ultime 20 analisi e decisioni prese dall'agente.
+              </p>
+            </div>
+            <DecisionHistory />
+          </article>
+
+          {/* Closed Positions */}
           <article className="p-6 rounded-xl border border-gray-200 bg-white shadow-sm">
             <div className="mb-4">
               <h2 className="text-lg font-bold flex items-center gap-2 mb-1 text-gray-900">
                 <span className="w-2 h-2 rounded-full bg-gray-500"></span>
-                Posizioni chiuse (Stimate)
+                Posizioni chiuse
               </h2>
               <p className="text-sm text-muted-foreground">
-                Ultime posizioni chiuse rilevate dal confronto degli snapshot.
+                Storico operazioni chiuse (da Hyperliquid).
               </p>
             </div>
             <ClosedPositions />
