@@ -36,8 +36,12 @@ class MarketDataAggregator:
         # We use the existing data provider from coin_screener
         is_testnet = os.getenv("TESTNET", "true").lower() == "true"
         
+        # Cache per Hyperliquid instance
+        self.hyperliquid = None
         if HyperliquidDataProvider:
             try:
+                # Singleton pattern: reuse instance if already available in bot_state or similar
+                # For now, we create one instance per aggregator but we should ensure aggregator is singleton
                 self.hyperliquid = HyperliquidDataProvider(testnet=is_testnet)
                 logger.info(f"Hyperliquid provider initialized (Testnet: {is_testnet})")
             except Exception as e:
@@ -45,7 +49,7 @@ class MarketDataAggregator:
                 self.hyperliquid = None
         else:
             logger.warning("HyperliquidDataProvider class not found. Hyperliquid data will be unavailable.")
-            self.hyperliquid = None
+
 
     def _load_config(self, path: str) -> Dict[str, Any]:
         """Load configuration from YAML or environment variables."""

@@ -652,13 +652,22 @@ from market_data.aggregator import MarketDataAggregator
 # Market Data API Endpoints
 # =====================
 
+# Singleton aggregator instance
+_market_data_aggregator = None
+
+def get_market_aggregator():
+    global _market_data_aggregator
+    if _market_data_aggregator is None:
+        _market_data_aggregator = MarketDataAggregator()
+    return _market_data_aggregator
+
 @app.get("/api/market-data/aggregate")
 async def get_market_data_aggregate(symbol: str = "BTC"):
     """
     Restituisce dati di mercato aggregati per un symbol specifico.
     """
     try:
-        aggregator = MarketDataAggregator()
+        aggregator = get_market_aggregator()
         snapshot = await aggregator.fetch_market_snapshot(symbol)
         return snapshot
     except Exception as e:

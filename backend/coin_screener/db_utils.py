@@ -48,25 +48,25 @@ def log_screening_result(conn, result: 'CoinScreenerResult') -> int:
         for coin in result.selected_coins:
             cur.execute(
                 """
-                INSERT INTO coin_scores_history (
-                    screening_id,
-                    symbol,
-                    score,
-                    rank,
-                    factors,
-                    metrics
-                )
-                VALUES (%s, %s, %s, %s, %s, %s);
-                """,
-                (
-                    screening_id,
-                    coin.symbol,
-                    coin.score,
-                    coin.rank,
-                    Json(coin.factors),
-                    Json(coin.metrics)
-                )
+            INSERT INTO coin_scores_history (
+                screening_id,
+                symbol,
+                score,
+                rank,
+                factors,
+                metrics
             )
+            VALUES (%s, %s, %s, %s, %s, %s);
+            """,
+            (
+                screening_id,
+                coin.symbol,
+                float(coin.score) if coin.score is not None else 0.0,
+                coin.rank,
+                Json(coin.factors),
+                Json(coin.metrics)
+            )
+        )
 
     conn.commit()
     logger.info(f"Logged screening result (ID: {screening_id})")
