@@ -83,7 +83,8 @@ class TrendConfirmationEngine:
             testnet: Use Hyperliquid testnet
         """
         base_url = constants.TESTNET_API_URL if testnet else constants.MAINNET_API_URL
-        self.info = Info(base_url, skip_ws=True)
+        from hyperliquid_utils import init_info_with_retry
+        self.info = init_info_with_retry(base_url, skip_ws=True)
         self.testnet = testnet
 
         # Configuration

@@ -18,14 +18,46 @@ logger = logging.getLogger(__name__)
 from hyperliquid.utils.error import ClientError
 import time
 
+# Import helper per inizializzazione con retry
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), "../../.."))
+try:
+    from hyperliquid_utils import init_info_with_retry
+except ImportError:
+    # Fallback se non trovato
+    def init_info_with_retry(base_url: str, skip_ws: bool = True, max_retries: int = 5):
+        retry_delay = 3
+        for attempt in range(max_retries):
+            try:
+                return Info(base_url, skip_ws=skip_ws)
+            except ClientError as e:
+                error_args = e.args[0] if e.args else None
+                if isinstance(error_args, tuple) and len(error_args) > 0 and error_args[0] == 429:
+                    if attempt < max_retries - 1:
+                        wait_time = retry_delay * (2 ** attempt)
+                        logger.warning(f"Rate limit (429) durante inizializzazione Info, retry in {wait_time}s...")
+                        time.sleep(wait_time)
+                        continue
+                raise
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    logger.warning(f"Errore durante inizializzazione Info: {e}, retry in {retry_delay}s...")
+                    time.sleep(retry_delay)
+                    continue
+                raise
+        raise RuntimeError("Failed to initialize Info after all retries")
+
 class HyperliquidDataProvider:
     """Fetch market data from Hyperliquid"""
 
     def __init__(self, testnet: bool = True):
         base_url = constants.TESTNET_API_URL if testnet else constants.MAINNET_API_URL
-        self.info = Info(base_url, skip_ws=True)
+        # Inizializza Info con retry logic per gestire rate limiting
+        self.info = init_info_with_retry(base_url, skip_ws=True)
         self.testnet = testnet
         logger.info(f"Initialized HyperliquidDataProvider ({'testnet' if testnet else 'mainnet'})")
+    
 
     def _retry_api_call(self, func, *args, max_retries=3, **kwargs):
         """Helper to retry API calls on rate limit"""

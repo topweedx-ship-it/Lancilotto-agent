@@ -1,4 +1,5 @@
 import json
+import time
 from decimal import Decimal, ROUND_DOWN
 from typing import Dict, Any
 
@@ -8,6 +9,8 @@ from eth_account.signers.local import LocalAccount
 from hyperliquid.info import Info
 from hyperliquid.exchange import Exchange
 from hyperliquid.utils import constants
+from hyperliquid.utils.error import ClientError
+from hyperliquid_utils import init_info_with_retry
 
 
 class HyperLiquidTrader:
@@ -29,12 +32,21 @@ class HyperLiquidTrader:
         # crea account signer
         account: LocalAccount = eth_account.Account.from_key(secret_key)
 
-        self.info = Info(base_url, skip_ws=skip_ws)
+        # Inizializza Info con retry logic per gestire rate limiting
+        self.info = init_info_with_retry(base_url, skip_ws=skip_ws)
         # Exchange usa account_address (API wallet) per le operazioni di trading
         self.exchange = Exchange(account, base_url, account_address=account_address)
 
-        # cache meta per tick-size e min-size
-        self.meta = self.info.meta()
+        # cache meta per tick-size e min-size (anche questo può ricevere 429, ma è meno critico)
+        try:
+            self.meta = self.info.meta()
+        except ClientError as e:
+            error_args = e.args[0] if e.args else None
+            if isinstance(error_args, tuple) and len(error_args) > 0 and error_args[0] == 429:
+                print("⚠️ Rate limit (429) su meta(), continuo senza cache...")
+                self.meta = None  # Continua senza cache, verrà ricaricato quando necessario
+            else:
+                raise
 
     def _to_hl_size(self, size_decimal: Decimal) -> str:
         # HL accetta max 8 decimali

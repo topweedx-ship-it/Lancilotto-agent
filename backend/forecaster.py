@@ -83,7 +83,8 @@ class HybridForecaster:
             raise ImportError("hyperliquid-python-sdk non è installato. Installalo con: pip install hyperliquid-python-sdk")
         
         base_url = constants.TESTNET_API_URL if testnet else constants.MAINNET_API_URL
-        self.info = Info(base_url, skip_ws=True)
+        from hyperliquid_utils import init_info_with_retry
+        self.info = init_info_with_retry(base_url, skip_ws=True)
         
         if TORCH_AVAILABLE:
             self.use_gpu = use_gpu and torch.cuda.is_available()
@@ -346,7 +347,8 @@ class HyperliquidForecaster:
             raise ImportError("prophet non è installato. Installalo con: pip install prophet")
         
         base_url = constants.TESTNET_API_URL if testnet else constants.MAINNET_API_URL
-        self.info = Info(base_url, skip_ws=True)
+        from hyperliquid_utils import init_info_with_retry
+        self.info = init_info_with_retry(base_url, skip_ws=True)
         self.last_prices = {}  # Memorizza gli ultimi prezzi per calcolare la variazione
 
     def _fetch_candles(self, coin: str, interval: str, limit: int) -> pd.DataFrame:
