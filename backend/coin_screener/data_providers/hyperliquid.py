@@ -15,6 +15,9 @@ from ..models import CoinMetrics
 logger = logging.getLogger(__name__)
 
 
+from hyperliquid.utils.error import ClientError
+import time
+
 class HyperliquidDataProvider:
     """Fetch market data from Hyperliquid"""
 
@@ -24,15 +27,38 @@ class HyperliquidDataProvider:
         self.testnet = testnet
         logger.info(f"Initialized HyperliquidDataProvider ({'testnet' if testnet else 'mainnet'})")
 
+    def _retry_api_call(self, func, *args, max_retries=3, **kwargs):
+        """Helper to retry API calls on rate limit"""
+        for attempt in range(max_retries):
+            try:
+                return func(*args, **kwargs)
+            except ClientError as e:
+                error_args = e.args[0] if e.args else None
+                if isinstance(error_args, tuple) and len(error_args) > 0 and error_args[0] == 429:
+                    if attempt < max_retries - 1:
+                        wait_time = 2 * (attempt + 1)
+                        logger.warning(f"Rate limit (429) in data provider, retrying in {wait_time}s...")
+                        time.sleep(wait_time)
+                        continue
+                logger.error(f"API Error: {e}")
+                raise
+            except Exception as e:
+                logger.error(f"Unexpected error in API call: {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(1)
+                    continue
+                raise
+        return None
+
     def get_available_symbols(self) -> List[str]:
         """
         Get list of all available trading symbols.
-
+        
         Returns:
             List of symbol strings (e.g., ['BTC', 'ETH', 'SOL'])
         """
         try:
-            meta = self.info.meta()
+            meta = self._retry_api_call(self.info.meta)
             symbols = [asset['name'] for asset in meta['universe']]
             logger.info(f"Found {len(symbols)} available symbols on Hyperliquid")
             return symbols
@@ -52,7 +78,7 @@ class HyperliquidDataProvider:
         """
         try:
             # Get current price
-            mids = self.info.all_mids()
+            mids = self._retry_api_call(self.info.all_mids)
             if symbol not in mids:
                 logger.warning(f"Symbol {symbol} not found in mids")
                 return None
@@ -128,7 +154,7 @@ class HyperliquidDataProvider:
     def _calculate_spread(self, symbol: str) -> float:
         """Calculate bid-ask spread percentage"""
         try:
-            orderbook = self.info.l2_snapshot(symbol)
+            orderbook = self._retry_api_call(self.info.l2_snapshot, symbol)
             if not orderbook or "levels" not in orderbook:
                 return 0.5  # Default to max allowed
 
@@ -279,7 +305,8 @@ class HyperliquidDataProvider:
             step_ms = interval_to_ms[interval]
             start_ms = now_ms - limit * step_ms
 
-            ohlcv_data = self.info.candles_snapshot(
+            ohlcv_data = self._retry_api_call(
+                self.info.candles_snapshot,
                 name=symbol,
                 interval=interval,
                 startTime=start_ms,

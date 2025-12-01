@@ -379,8 +379,8 @@ class HyperLiquidTrader:
         import time
         from hyperliquid.utils.error import ClientError
 
-        max_retries = 3
-        retry_delay = 2  # seconds
+        max_retries = 5
+        retry_delay = 3  # seconds
 
         data = {}
         
@@ -396,7 +396,7 @@ class HyperLiquidTrader:
                 # Check for 429 Too Many Requests
                 if isinstance(error_args, tuple) and len(error_args) > 0 and error_args[0] == 429:
                     if attempt < max_retries - 1:
-                        wait_time = retry_delay * (attempt + 1)
+                        wait_time = retry_delay * (2 ** attempt)  # Exponential backoff: 3, 6, 12, 24, 48s
                         print(f"⚠️ Rate limit (429) su user_state, retry in {wait_time}s...")
                         time.sleep(wait_time)
                         continue
