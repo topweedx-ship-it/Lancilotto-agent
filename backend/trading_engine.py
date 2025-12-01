@@ -700,13 +700,19 @@ Trend Analysis for {symbol}:
 
                             if operation == "open" and result.get("status") == "ok":
                                 # Log opened trade
+                                # Fallback per entry_price se non presente nella risposta
+                                entry_price = result.get("fill_price")
+                                if not entry_price:
+                                    mids = trader.info.all_mids()
+                                    entry_price = float(mids.get(symbol, 0))
+
                                 trade_id = db_utils.log_executed_trade(
                                     bot_operation_id=None,  # Will update after bot_operation is logged
                                     trade_type="open",
                                     symbol=symbol,
                                     direction=direction,
                                     size=result.get("size", decision.get("size", 0)),
-                                    entry_price=result.get("fill_price"),
+                                    entry_price=entry_price,
                                     leverage=decision.get("leverage"),
                                     stop_loss_price=decision.get("stop_loss"),
                                     take_profit_price=decision.get("take_profit"),
@@ -725,7 +731,7 @@ Trend Analysis for {symbol}:
                                         direction=direction,
                                         size_usd=result.get("size_usd", 0.0),
                                         leverage=decision.get("leverage", 1),
-                                        entry_price=result.get("fill_price", 0.0),
+                                        entry_price=entry_price,
                                         stop_loss=decision.get("stop_loss", 0.0),
                                         take_profit=decision.get("take_profit", 0.0)
                                     )
@@ -737,16 +743,29 @@ Trend Analysis for {symbol}:
                                 if symbol in bot_state.active_trades:
                                     # Get position info for P&L calculation
                                     position = next((p for p in open_positions if p["symbol"] == symbol), None)
-                                    entry_price = position.get("entry_price", 0) if position else 0
-                                    exit_price = result.get("fill_price", 0)
+                                    pos_entry_price = position.get("entry_price", 0) if position else 0
+                                    
+                                    # Fallback per exit_price
+                                    exit_price = result.get("fill_price")
+                                    if not exit_price:
+                                        mids = trader.info.all_mids()
+                                        exit_price = float(mids.get(symbol, 0))
 
                                     # Calculate P&L if not provided
                                     pnl_usd = result.get("pnl_usd")
                                     if pnl_usd is None and position:
                                         size = position.get("size", 0)
-                                        pnl_usd = (exit_price - entry_price) * size
+                                        # PnL calc: (Exit - Entry) * Size (for Long)
+                                        # For Short: (Entry - Exit) * Size
+                                        # Assuming standard linear contract logic or handled by exchange
+                                        # RiskManager uses direction aware logic, let's replicate or rely on backend
+                                        side = position.get("side", "long")
+                                        if side.lower() == "long":
+                                            pnl_usd = (exit_price - pos_entry_price) * size
+                                        else:
+                                            pnl_usd = (pos_entry_price - exit_price) * size
 
-                                    pnl_pct = ((exit_price - entry_price) / entry_price * 100) if entry_price else None
+                                    pnl_pct = ((exit_price - pos_entry_price) / pos_entry_price * 100) if pos_entry_price > 0 else 0
 
                                     db_utils.close_trade(
                                         trade_id=bot_state.active_trades[symbol],

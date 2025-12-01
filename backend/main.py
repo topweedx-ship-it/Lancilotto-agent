@@ -787,6 +787,31 @@ def on_startup():
                 except Exception as e:
                     logger.error(f"❌ Errore nell'invio notifica Telegram: {e}", exc_info=True)
                 
+                # Avvia thread per aggiornamento frequente account status (ogni 30s)
+                def start_account_updater():
+                    """Aggiorna lo stato dell'account ogni 30 secondi"""
+                    import time
+                    import db_utils
+                    # Attendi inizializzazione
+                    while not bot_state.initialized:
+                        time.sleep(1)
+                    
+                    logger.info("🔄 Avvio loop aggiornamento account status (30s)...")
+                    while True:
+                        try:
+                            if bot_state.trader:
+                                account_status = bot_state.trader.get_account_status()
+                                db_utils.log_account_status(account_status)
+                                # logger.debug("✅ Account status aggiornato (background)")
+                        except Exception as e:
+                            logger.warning(f"⚠️ Errore aggiornamento account status: {e}")
+                        
+                        time.sleep(30) # Aggiorna ogni 30 secondi
+                
+                updater_thread = threading.Thread(target=start_account_updater, daemon=True)
+                updater_thread.start()
+                logger.info("✅ Account Updater thread avviato")
+                
                 # Avvia scheduler (bloccante)
                 scheduler = TradingScheduler(
                     trading_func=trading_cycle,

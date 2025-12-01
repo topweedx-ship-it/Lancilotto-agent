@@ -707,6 +707,10 @@ class HyperLiquidTrader:
             # Ottieni prezzo di entry dai mids
             mids = self.info.all_mids()
             entry_price = float(mids.get(symbol, 0))
+            
+            # Inject fill_price if missing (using current price as estimate)
+            if "fill_price" not in result:
+                result["fill_price"] = entry_price
 
             # Registra posizione per monitoring
             risk_manager.register_position(

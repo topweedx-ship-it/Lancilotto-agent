@@ -48,32 +48,52 @@ export function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchData = async (retryCount = 0) => {
+  // Initial configuration state
+  const [activeTickers, setActiveTickers] = useState<string[]>(['BTC'])
+
+  const fetchData = async (retryCount = 0, isRefresh = false) => {
     const maxRetries = 5
     const retryDelay = 2000 // 2 seconds
 
-    setLoading(true)
+    if (!isRefresh) {
+      setLoading(true)
+    }
+    
     if (retryCount === 0) {
       setError(null)
     }
 
     try {
       const baseUrl = API_BASE_URL || ''
-      const [balanceRes, positionsRes, operationsRes] = await Promise.all([
+      const [balanceRes, positionsRes, operationsRes, configRes] = await Promise.all([
         fetch(`${baseUrl}/api/balance`),
         fetch(`${baseUrl}/api/open-positions`),
         fetch(`${baseUrl}/api/bot-operations?limit=10`), // Limit to 10 as per screenshot text
+        fetch(`${baseUrl}/api/config`)
       ])
 
       if (!balanceRes.ok) throw new Error(`Errore nel caricamento del saldo: ${balanceRes.statusText}`)
       if (!positionsRes.ok) throw new Error(`Errore nel caricamento delle posizioni: ${positionsRes.statusText}`)
       if (!operationsRes.ok) throw new Error(`Errore nel caricamento delle operazioni: ${operationsRes.statusText}`)
-
+      
       const [balanceData, positionsData, operationsData] = await Promise.all([
         balanceRes.json(),
         positionsRes.json(),
         operationsRes.json(),
       ])
+
+      // Aggiorna i ticker attivi se la chiamata config ha successo
+      if (configRes.ok) {
+        const configData = await configRes.json()
+        // Se lo screener è attivo prendi da top_n_coins se disponibile nel backend, altrimenti fallback a tickers statici
+        // Ma l'API config ritorna già l'elenco "tickers" corretto che il backend sta usando? 
+        // In realta backend/main.py:686 ritorna CONFIG.get("TICKERS", []) che potrebbe essere statico o dinamico 
+        // Se dinamico, dovremmo esporre i 'selected_coins' attuali. 
+        // Per ora usiamo i tickers ritornati dalla config che sono quelli su cui il bot opera.
+        if (configData.trading && Array.isArray(configData.trading.tickers)) {
+             setActiveTickers(configData.trading.tickers)
+        }
+      }
 
       setBalance(balanceData)
       setOpenPositions(positionsData)
@@ -88,7 +108,7 @@ export function Dashboard() {
         // Retry with exponential backoff
         const delay = retryDelay * Math.pow(2, retryCount)
         console.log(`Backend non disponibile, retry in ${delay}ms... (tentativo ${retryCount + 1}/${maxRetries})`)
-        setTimeout(() => fetchData(retryCount + 1), delay)
+        setTimeout(() => fetchData(retryCount + 1, isRefresh), delay)
         return
       }
 
@@ -111,7 +131,7 @@ export function Dashboard() {
 
   // Wrapper for button clicks
   const handleRefresh = () => {
-    fetchData(0)
+    fetchData(0, true)
   }
 
   useEffect(() => {
@@ -120,7 +140,7 @@ export function Dashboard() {
       fetchData()
     }, 2000) // 2 second delay
 
-    const intervalId = setInterval(() => fetchData(), 300000) // 5 minuti (300000 ms)
+    const intervalId = setInterval(() => fetchData(0, true), 30000) // 30 secondi (30000 ms)
     return () => {
       clearTimeout(initialDelay)
       clearInterval(intervalId)
