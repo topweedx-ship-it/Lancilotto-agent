@@ -71,6 +71,17 @@ class CoinMetrics:
     atr_14: Optional[float] = None
     atr_sma_20: Optional[float] = None
 
+    # Trend indicators (daily timeframe for Phase 1)
+    adx_14: Optional[float] = None
+    plus_di: Optional[float] = None
+    minus_di: Optional[float] = None
+    ema_20: Optional[float] = None
+    ema_50: Optional[float] = None
+    ema_200: Optional[float] = None
+    donchian_upper_20: Optional[float] = None
+    donchian_lower_20: Optional[float] = None
+    donchian_position: Optional[float] = None  # 0-1 range
+
     # Additional metadata
     is_stablecoin: bool = False
     coingecko_id: Optional[str] = None
@@ -93,6 +104,15 @@ class CoinMetrics:
             "oi_7d_ago": self.oi_7d_ago,
             "atr_14": self.atr_14,
             "atr_sma_20": self.atr_sma_20,
+            "adx_14": self.adx_14,
+            "plus_di": self.plus_di,
+            "minus_di": self.minus_di,
+            "ema_20": self.ema_20,
+            "ema_50": self.ema_50,
+            "ema_200": self.ema_200,
+            "donchian_upper_20": self.donchian_upper_20,
+            "donchian_lower_20": self.donchian_lower_20,
+            "donchian_position": self.donchian_position,
             "is_stablecoin": self.is_stablecoin,
             "coingecko_id": self.coingecko_id
         }
@@ -118,21 +138,28 @@ class HardFilterConfig:
 @dataclass
 class ScoringWeights:
     """Weights for scoring factors (must sum to 1.0)"""
-    momentum_7d: float = 0.20
-    momentum_30d: float = 0.15
-    volatility_regime: float = 0.15
-    volume_trend: float = 0.15
-    oi_trend: float = 0.10
-    funding_stability: float = 0.10
-    liquidity_score: float = 0.10
-    relative_strength: float = 0.05
+    # Existing factors (reduced to make room for trend factors)
+    momentum_7d: float = 0.15        # Was 0.20
+    momentum_30d: float = 0.10       # Was 0.15
+    volatility_regime: float = 0.10  # Was 0.15
+    volume_trend: float = 0.10       # Was 0.15
+    oi_trend: float = 0.08           # Was 0.10
+    funding_stability: float = 0.07  # Was 0.10
+    liquidity_score: float = 0.05    # Was 0.10
+    relative_strength: float = 0.05  # Unchanged
+
+    # NEW TREND FACTORS (Phase 1 - total 0.30)
+    adx_strength: float = 0.12       # ADX > 25 = strong trend
+    ema_alignment: float = 0.10      # EMA20 > EMA50 alignment
+    donchian_position: float = 0.08  # Position in Donchian Channel
 
     def __post_init__(self):
         """Validate weights sum to 1.0"""
         total = (
             self.momentum_7d + self.momentum_30d + self.volatility_regime +
             self.volume_trend + self.oi_trend + self.funding_stability +
-            self.liquidity_score + self.relative_strength
+            self.liquidity_score + self.relative_strength +
+            self.adx_strength + self.ema_alignment + self.donchian_position
         )
         if abs(total - 1.0) > 0.001:
             raise ValueError(f"Scoring weights must sum to 1.0, got {total}")

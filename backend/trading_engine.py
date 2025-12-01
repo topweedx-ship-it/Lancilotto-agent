@@ -37,6 +37,9 @@ import db_utils
 # Coin screener
 from coin_screener import CoinScreener
 
+# Trend confirmation (Phase 2)
+from trend_confirmation import TrendConfirmationEngine
+
 # Notifiche Telegram
 from notifications import notifier
 
@@ -57,6 +60,14 @@ CONFIG = {
     "TOP_N_COINS": 5,
     "REBALANCE_DAY": "sunday",
     "FALLBACK_TICKERS": ["BTC", "ETH", "SOL"],  # Used if screening fails or disabled
+
+    # Trend Confirmation (Phase 2)
+    "TREND_CONFIRMATION_ENABLED": True,  # Enable multi-timeframe trend confirmation
+    "MIN_TREND_CONFIDENCE": 0.6,  # Minimum trend confidence to trade (0-1)
+    "SKIP_POOR_ENTRY": True,  # Skip trades when entry_quality is "wait"
+    "ADX_THRESHOLD": 25,  # ADX threshold for strong trends
+    "RSI_OVERBOUGHT": 70,  # RSI overbought level
+    "RSI_OVERSOLD": 30,  # RSI oversold level
 
     # Risk Management
     "MAX_DAILY_LOSS_USD": 500.0,
@@ -119,6 +130,7 @@ class BotState:
         self.trader: Optional[HyperLiquidTrader] = None
         self.risk_manager: Optional[RiskManager] = None
         self.screener: Optional[CoinScreener] = None
+        self.trend_engine: Optional[TrendConfirmationEngine] = None
         self.initialized: bool = False
         self.last_error: Optional[str] = None
 
@@ -169,6 +181,18 @@ class BotState:
                 # Run migration for screener tables
                 from coin_screener.db_migration import run_migration
                 run_migration(db_utils.get_connection().__enter__())
+
+            # Trend Confirmation Engine (se abilitato - Phase 2)
+            if CONFIG["TREND_CONFIRMATION_ENABLED"]:
+                self.trend_engine = TrendConfirmationEngine(testnet=CONFIG["TESTNET"])
+                # Configure thresholds from CONFIG
+                self.trend_engine.config['adx_threshold'] = CONFIG["ADX_THRESHOLD"]
+                self.trend_engine.config['rsi_overbought'] = CONFIG["RSI_OVERBOUGHT"]
+                self.trend_engine.config['rsi_oversold'] = CONFIG["RSI_OVERSOLD"]
+                self.trend_engine.config['min_confidence'] = CONFIG["MIN_TREND_CONFIDENCE"]
+                logger.info("✅ Trend Confirmation Engine inizializzato")
+                logger.info(f"   ADX threshold: {CONFIG['ADX_THRESHOLD']}")
+                logger.info(f"   Min confidence: {CONFIG['MIN_TREND_CONFIDENCE']}")
 
             self.initialized = True
             return True
@@ -449,6 +473,75 @@ Circuit breaker: {'ATTIVO' if risk_status['circuit_breaker_active'] else 'inatti
         logger.info(f"📝 Motivazione: {reason[:100]}...")
 
         # ========================================
+        # 5.5 TREND CONFIRMATION (Phase 2)
+        # ========================================
+        trend_check_passed = True
+        trend_info = ""
+
+        if CONFIG["TREND_CONFIRMATION_ENABLED"] and bot_state.trend_engine and operation != "hold":
+            try:
+                logger.info(f"🔍 Verifica trend per {symbol}...")
+
+                # Get daily metrics from screener if available
+                daily_metrics = None
+                if screener and CONFIG["SCREENING_ENABLED"]:
+                    selected_coins = screener.get_selected_coins()
+                    for coin in selected_coins:
+                        if coin.symbol == symbol:
+                            daily_metrics = {
+                                'adx_14': coin.metrics.get('adx_14'),
+                                'plus_di': coin.metrics.get('plus_di'),
+                                'minus_di': coin.metrics.get('minus_di'),
+                            }
+                            break
+
+                # Confirm trend
+                confirmation = bot_state.trend_engine.confirm_trend(
+                    symbol=symbol,
+                    daily_metrics=daily_metrics
+                )
+
+                # Log trend analysis
+                logger.info(
+                    f"📊 Trend {symbol}: {confirmation.direction.value} "
+                    f"[{confirmation.quality.value}] "
+                    f"({confirmation.confidence:.0%} confidence)"
+                )
+                logger.info(
+                    f"   Daily: {confirmation.daily_trend.value if confirmation.daily_trend else 'N/A'}, "
+                    f"Hourly: {confirmation.hourly_trend.value if confirmation.hourly_trend else 'N/A'}, "
+                    f"15m: {confirmation.m15_trend.value if confirmation.m15_trend else 'N/A'}"
+                )
+                logger.info(f"   Entry quality: {confirmation.entry_quality}")
+
+                # Store trend info for context
+                trend_info = f"""
+Trend Analysis for {symbol}:
+- Overall: {confirmation.direction.value} [{confirmation.quality.value}] ({confirmation.confidence:.0%})
+- Daily: {confirmation.daily_trend.value if confirmation.daily_trend else 'N/A'} (ADX: {confirmation.daily_adx:.1f if confirmation.daily_adx else 'N/A'})
+- Hourly: {confirmation.hourly_trend.value if confirmation.hourly_trend else 'N/A'} (RSI: {confirmation.hourly_rsi:.1f if confirmation.hourly_rsi else 'N/A'})
+- 15m: {confirmation.m15_trend.value if confirmation.m15_trend else 'N/A'} (MACD: {confirmation.m15_macd_signal})
+- Entry: {confirmation.entry_quality}
+"""
+
+                # Check if we should trade
+                if not confirmation.should_trade:
+                    logger.warning(f"⏭️ Trend check FAILED: qualità trend insufficiente")
+                    trend_check_passed = False
+                elif CONFIG["SKIP_POOR_ENTRY"] and confirmation.entry_quality == "wait":
+                    logger.warning(f"⏳ Trend check WAIT: entry timing non ottimale")
+                    trend_check_passed = False
+                elif confirmation.entry_quality == "optimal":
+                    logger.info(f"✨ OPTIMAL entry opportunity per {symbol}!")
+                else:
+                    logger.info(f"✅ Trend check passed (entry: {confirmation.entry_quality})")
+
+            except Exception as e:
+                logger.error(f"❌ Errore trend confirmation: {e}", exc_info=True)
+                # In caso di errore, procedi comunque (fail-safe)
+                logger.warning("⚠️ Procedendo senza trend confirmation a causa dell'errore")
+
+        # ========================================
         # 6. ESECUZIONE CON RISK MANAGEMENT
         # ========================================
         result = {"status": "skipped"}
@@ -462,6 +555,10 @@ Circuit breaker: {'ATTIVO' if risk_status['circuit_breaker_active'] else 'inatti
                 f"⚠️ Confidence troppo bassa ({confidence:.1%} < {CONFIG['MIN_CONFIDENCE']:.1%}), skip"
             )
             result = {"status": "skipped", "reason": f"Low confidence: {confidence:.1%}"}
+
+        elif not trend_check_passed:
+            logger.warning(f"⛔ Trade bloccato: trend check non superato")
+            result = {"status": "blocked", "reason": "Trend confirmation failed"}
 
         else:
             # Verifica con risk manager

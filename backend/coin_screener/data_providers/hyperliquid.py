@@ -74,6 +74,9 @@ class HyperliquidDataProvider:
             # Get ATR for volatility
             atr_14, atr_sma_20 = self._calculate_atr_metrics(symbol)
 
+            # Get trend indicators (Phase 1 enhancement)
+            trend_indicators = self._calculate_trend_indicators(symbol)
+
             # Get funding rate (placeholder for now)
             funding_rate = 0.0  # Will be implemented if API available
 
@@ -103,7 +106,17 @@ class HyperliquidDataProvider:
                 volume_30d_avg=volume_30d_avg,
                 oi_7d_ago=oi_7d_ago,
                 atr_14=atr_14,
-                atr_sma_20=atr_sma_20
+                atr_sma_20=atr_sma_20,
+                # Add trend indicators
+                adx_14=trend_indicators.get('adx_14'),
+                plus_di=trend_indicators.get('plus_di'),
+                minus_di=trend_indicators.get('minus_di'),
+                ema_20=trend_indicators.get('ema_20'),
+                ema_50=trend_indicators.get('ema_50'),
+                ema_200=trend_indicators.get('ema_200'),
+                donchian_upper_20=trend_indicators.get('donchian_upper_20'),
+                donchian_lower_20=trend_indicators.get('donchian_lower_20'),
+                donchian_position=trend_indicators.get('donchian_position')
             )
 
             return metrics
@@ -300,3 +313,71 @@ class HyperliquidDataProvider:
         except Exception as e:
             logger.debug(f"Error fetching OHLCV for {symbol}: {e}")
             return None
+
+    def _calculate_trend_indicators(self, symbol: str) -> Dict[str, Optional[float]]:
+        """
+        Calculate trend indicators from daily data for Phase 1 enhancement.
+
+        Calculates:
+        - ADX (14-period Average Directional Index)
+        - +DI and -DI (Directional Indicators)
+        - EMAs (20, 50, 200-period Exponential Moving Averages)
+        - Donchian Channel (20-period) and position within it
+
+        Args:
+            symbol: Coin symbol
+
+        Returns:
+            Dictionary with trend indicator values
+        """
+        try:
+            # Fetch 250 days of data to calculate EMA200 properly
+            df = self._fetch_ohlcv(symbol, interval="1d", limit=250)
+
+            if df is None or len(df) < 50:
+                logger.debug(f"Insufficient daily data for trend indicators on {symbol}")
+                return {}
+
+            # Calculate ADX and Directional Indicators
+            adx_indicator = ta.trend.ADXIndicator(
+                high=df['high'],
+                low=df['low'],
+                close=df['close'],
+                window=14
+            )
+            adx_14 = adx_indicator.adx().iloc[-1] if len(df) >= 14 else None
+            plus_di = adx_indicator.adx_pos().iloc[-1] if len(df) >= 14 else None
+            minus_di = adx_indicator.adx_neg().iloc[-1] if len(df) >= 14 else None
+
+            # Calculate EMAs
+            ema_20 = ta.trend.EMAIndicator(df['close'], window=20).ema_indicator().iloc[-1] if len(df) >= 20 else None
+            ema_50 = ta.trend.EMAIndicator(df['close'], window=50).ema_indicator().iloc[-1] if len(df) >= 50 else None
+            ema_200 = ta.trend.EMAIndicator(df['close'], window=200).ema_indicator().iloc[-1] if len(df) >= 200 else None
+
+            # Calculate Donchian Channel (20-period)
+            donchian_upper = df['high'].rolling(window=20).max().iloc[-1] if len(df) >= 20 else None
+            donchian_lower = df['low'].rolling(window=20).min().iloc[-1] if len(df) >= 20 else None
+
+            # Calculate position within Donchian Channel (0-1 range)
+            current_price = df['close'].iloc[-1]
+            donchian_position = None
+            if donchian_upper is not None and donchian_lower is not None and donchian_upper > donchian_lower:
+                donchian_position = (current_price - donchian_lower) / (donchian_upper - donchian_lower)
+                # Clamp to 0-1 range
+                donchian_position = max(0.0, min(1.0, donchian_position))
+
+            return {
+                'adx_14': adx_14,
+                'plus_di': plus_di,
+                'minus_di': minus_di,
+                'ema_20': ema_20,
+                'ema_50': ema_50,
+                'ema_200': ema_200,
+                'donchian_upper_20': donchian_upper,
+                'donchian_lower_20': donchian_lower,
+                'donchian_position': donchian_position
+            }
+
+        except Exception as e:
+            logger.debug(f"Error calculating trend indicators for {symbol}: {e}")
+            return {}

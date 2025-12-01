@@ -79,6 +79,7 @@ class CoinScorer:
         """
         factors = {}
 
+        # Existing factors (1-8)
         # 1. Momentum 7d (percentile ranking)
         factors['momentum_7d'] = self._calculate_momentum_7d(coin, all_coins)
 
@@ -105,6 +106,16 @@ class CoinScorer:
             coin, btc_price, btc_price_7d
         )
 
+        # NEW TREND FACTORS (Phase 1 - 9-11)
+        # 9. ADX strength (trend strength indicator)
+        factors['adx_strength'] = self._calculate_adx_strength(coin)
+
+        # 10. EMA alignment (trend direction clarity)
+        factors['ema_alignment'] = self._calculate_ema_alignment(coin)
+
+        # 11. Donchian position (trend confirmation)
+        factors['donchian_position'] = self._calculate_donchian_trend(coin)
+
         return factors
 
     def _composite_score(self, factors: Dict[str, float]) -> float:
@@ -116,6 +127,7 @@ class CoinScorer:
         """
         score = 0.0
 
+        # Existing factors
         score += factors.get('momentum_7d', 0) * self.weights.momentum_7d
         score += factors.get('momentum_30d', 0) * self.weights.momentum_30d
         score += factors.get('volatility_regime', 0) * self.weights.volatility_regime
@@ -124,6 +136,11 @@ class CoinScorer:
         score += factors.get('funding_stability', 0) * self.weights.funding_stability
         score += factors.get('liquidity_score', 0) * self.weights.liquidity_score
         score += factors.get('relative_strength', 0) * self.weights.relative_strength
+
+        # NEW: Trend factors (Phase 1)
+        score += factors.get('adx_strength', 0) * self.weights.adx_strength
+        score += factors.get('ema_alignment', 0) * self.weights.ema_alignment
+        score += factors.get('donchian_position', 0) * self.weights.donchian_position
 
         # Scale to 0-100
         return score * 100
@@ -276,3 +293,92 @@ class CoinScorer:
         values_array = np.array(values)
         percentile = np.sum(values_array < value) / len(values_array)
         return percentile
+
+    # NEW TREND SCORING METHODS (Phase 1)
+
+    def _calculate_adx_strength(self, coin: CoinMetrics) -> float:
+        """
+        ADX-based trend strength score.
+
+        Based on academic research suggesting ADX > 25 for strong trends in crypto.
+        Returns 0-1 where higher values indicate stronger trends.
+
+        Logic:
+        - ADX < 20: Ranging market (score = 0.3)
+        - ADX 20-25: Emerging trend (score = 0.5)
+        - ADX 25-40: Strong trend (score = 0.8)
+        - ADX > 40: Very strong trend (score = 1.0)
+        """
+        if coin.adx_14 is None:
+            return 0.5  # Neutral if no data
+
+        adx = coin.adx_14
+
+        if adx < 20:
+            return 0.3  # Weak/ranging market
+        elif adx < 25:
+            return 0.5  # Emerging trend
+        elif adx < 40:
+            return 0.8  # Strong trend
+        else:
+            return 1.0  # Very strong trend
+
+    def _calculate_ema_alignment(self, coin: CoinMetrics) -> float:
+        """
+        EMA alignment score for trend direction clarity.
+
+        Perfect bullish alignment (EMA20 > EMA50 > EMA200) = 1.0
+        Checks multiple conditions:
+        - Price position relative to EMAs
+        - EMA ordering (bullish or bearish alignment)
+
+        Returns 0-1 where higher values indicate better trend alignment.
+        """
+        if None in [coin.ema_20, coin.ema_50, coin.price]:
+            return 0.5  # Neutral if no data
+
+        score = 0.5  # Base score (neutral)
+
+        # Bullish alignment checks
+        if coin.ema_20 > coin.ema_50:
+            score += 0.2
+
+        # Add bonus if we have EMA200 data and it's aligned
+        if coin.ema_200 is not None:
+            if coin.ema_50 > coin.ema_200:
+                score += 0.2
+
+        # Check if price is above the trend (bullish)
+        if coin.price > coin.ema_20:
+            score += 0.1
+
+        return min(score, 1.0)
+
+    def _calculate_donchian_trend(self, coin: CoinMetrics) -> float:
+        """
+        Donchian channel position as trend indicator.
+
+        Based on Zarattini et al. (2025) research on trend-following strategies.
+        Position in channel indicates trend strength:
+        - High position (>0.8): Strong uptrend
+        - Mid-high (0.6-0.8): Moderate uptrend
+        - Mid (0.4-0.6): Consolidation/neutral
+        - Low (<0.4): Potential downtrend
+
+        Returns 0-1 where higher values indicate stronger uptrends.
+        """
+        if coin.donchian_position is None:
+            return 0.5  # Neutral if no data
+
+        pos = coin.donchian_position
+
+        if pos > 0.8:
+            return 1.0  # Strong uptrend
+        elif pos > 0.6:
+            return 0.7  # Moderate uptrend
+        elif pos > 0.4:
+            return 0.3  # Neutral/consolidation
+        else:
+            # For downtrend: could be valuable for short strategies
+            # For now, return neutral score
+            return 0.5
