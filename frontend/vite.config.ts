@@ -10,6 +10,8 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:5611',
         changeOrigin: true,
+        // Timeout aumentato per dare tempo al backend di avviarsi
+        timeout: 10000,
       },
       '/ws': {
         target: 'ws://localhost:5611',

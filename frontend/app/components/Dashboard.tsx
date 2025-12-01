@@ -48,9 +48,14 @@ export function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchData = async () => {
+  const fetchData = async (retryCount = 0) => {
+    const maxRetries = 5
+    const retryDelay = 2000 // 2 seconds
+
     setLoading(true)
-    setError(null)
+    if (retryCount === 0) {
+      setError(null)
+    }
 
     try {
       const baseUrl = API_BASE_URL || ''
@@ -73,18 +78,53 @@ export function Dashboard() {
       setBalance(balanceData)
       setOpenPositions(positionsData)
       setBotOperations(operationsData)
+      setError(null) // Clear error on success
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Errore sconosciuto')
-      console.error('Errore nel caricamento dei dati:', err)
+      // Check if it's a connection error
+      const isConnectionError = err instanceof TypeError && err.message.includes('fetch')
+      const isNetworkError = err instanceof TypeError || (err as Error)?.message?.includes('ECONNREFUSED')
+
+      if ((isConnectionError || isNetworkError) && retryCount < maxRetries) {
+        // Retry with exponential backoff
+        const delay = retryDelay * Math.pow(2, retryCount)
+        console.log(`Backend non disponibile, retry in ${delay}ms... (tentativo ${retryCount + 1}/${maxRetries})`)
+        setTimeout(() => fetchData(retryCount + 1), delay)
+        return
+      }
+
+      // Only show error if it's not a connection error or we've exhausted retries
+      if (!isConnectionError && !isNetworkError) {
+        setError(err instanceof Error ? err.message : 'Errore sconosciuto')
+      } else if (retryCount >= maxRetries) {
+        setError('Backend non disponibile. Assicurati che il server sia avviato.')
+      }
+
+      if (retryCount === 0) {
+        console.error('Errore nel caricamento dei dati:', err)
+      }
     } finally {
-      setLoading(false)
+      if (retryCount === 0 || retryCount >= maxRetries) {
+        setLoading(false)
+      }
     }
   }
 
+  // Wrapper for button clicks
+  const handleRefresh = () => {
+    fetchData(0)
+  }
+
   useEffect(() => {
-    fetchData()
-    const intervalId = setInterval(fetchData, 30000)
-    return () => clearInterval(intervalId)
+    // Delay initial fetch to give backend time to start
+    const initialDelay = setTimeout(() => {
+      fetchData()
+    }, 2000) // 2 second delay
+
+    const intervalId = setInterval(() => fetchData(), 300000) // 5 minuti (300000 ms)
+    return () => {
+      clearTimeout(initialDelay)
+      clearInterval(intervalId)
+    }
   }, [])
 
   if (loading) {
@@ -101,7 +141,7 @@ export function Dashboard() {
         <div className="text-center p-6 bg-red-50 rounded-lg border border-red-100">
           <p className="text-red-500 mb-4">Errore: {error}</p>
           <button
-            onClick={fetchData}
+            onClick={handleRefresh}
             className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
           >
             Riprova
@@ -121,7 +161,7 @@ export function Dashboard() {
           <p className="text-sm text-muted-foreground">Monitoraggio in tempo reale</p>
         </div>
         <button
-          onClick={fetchData}
+          onClick={handleRefresh}
           className="rounded-full border border-gray-200 px-4 py-2 text-sm font-medium bg-white text-gray-700 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 inline-flex items-center gap-2 transition-all shadow-sm"
         >
           <span>Aggiorna tutto</span>
@@ -220,7 +260,7 @@ export function Dashboard() {
               </p>
             </div>
             <button
-              onClick={fetchData}
+              onClick={handleRefresh}
               className="p-1.5 hover:bg-gray-100 rounded-full text-gray-400 hover:text-blue-600 transition-colors"
               title="Aggiorna lista"
             >
