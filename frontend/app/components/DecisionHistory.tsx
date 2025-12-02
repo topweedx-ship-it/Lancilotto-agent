@@ -19,6 +19,7 @@ interface DecisionData {
     confidence: number
     reason: string
     trend_info?: string
+    cycle_id?: string
     _model_name?: string
     execution_result?: {
         status: string
@@ -113,6 +114,7 @@ export function DecisionHistory() {
                     <thead className="bg-gray-50 text-gray-600 border-b border-gray-200">
                         <tr>
                             <th className="py-3 px-4 font-medium w-[140px]">Data</th>
+                            <th className="py-3 px-4 font-medium w-[100px]">Ciclo</th>
                             <th className="py-3 px-4 font-medium w-[80px]">Symbol</th>
                             <th className="py-3 px-4 font-medium w-[100px]">Azione</th>
                             <th className="py-3 px-4 font-medium w-[160px]">Stato</th>
@@ -138,6 +140,9 @@ export function DecisionHistory() {
                                         onClick={() => setExpandedId(isExpanded ? null : op.id)}
                                     >
                                         <td className="py-3 px-4 text-gray-500 whitespace-nowrap text-xs">{date}</td>
+                                        <td className="py-3 px-4 text-gray-400 text-[10px] font-mono truncate max-w-[80px]" title={payload.cycle_id}>
+                                            {payload.cycle_id ? payload.cycle_id.replace('cycle_', '') : '-'}
+                                        </td>
                                         <td className="py-3 px-4 font-bold text-gray-800">{payload.symbol || 'N/A'}</td>
                                         <td className="py-3 px-4">{getOperationBadge(payload)}</td>
                                         <td className="py-3 px-4">{getStatusBadge(payload)}</td>

@@ -11,17 +11,20 @@ Trading Agent è un progetto open source ispirato a [Alpha Arena](https://nof1.a
 - **Modularità**: ogni componente (news, sentiment, indicatori, whale alert, forecasting) è gestito da moduli separati, facilmente estendibili.
 - **Ispirazione Alpha Arena**: il progetto prende spunto dall'approccio competitivo e AI-driven di Alpha Arena, con l'obiettivo di creare agenti sempre più performanti.
 - **Gestione multi-modello AI**: supporta GPT-5.1, GPT-4o-mini e DeepSeek con selezione dinamica.
-- **Coin Screener Dinamico**: seleziona automaticamente le migliori coin in base a filtri quantitativi (volume, momentum, volatilità).
+- **Coin Screener Dinamico**: seleziona automaticamente le migliori coin in base a filtri quantitativi.
+- **Rotazione Intelligente & Fasi Separate**: 
+  - **Fase Gestione**: Monitora costantemente le posizioni aperte per decisioni di chiusura ottimali.
+  - **Fase Scouting**: Analizza a rotazione batch di nuove coin (5 per ciclo) per trovare nuove opportunità senza sovraccaricare l'AI.
 - **Analisi Manuale**: possibilità di eseguire analisi on-demand su specifiche coin senza interrompere il bot.
 
 ## 📊 Dashboard Web
 
 Il progetto include una moderna dashboard web (React/Vite) per il monitoraggio in tempo reale.
 
-### Caratteristiche Dashboard (v0.1.0)
+### Caratteristiche Dashboard (v0.1.1)
 - **Performance Overview**: Saldo, PnL e metriche chiave.
 - **Market Data**: Dati di mercato aggregati e spread.
-- **Operazioni AI**: Log delle decisioni dell'agente con ragionamento e forecast.
+- **Operazioni AI**: Log delle decisioni dell'agente con ragionamento, forecast e ID Ciclo.
 - **System Logs**: Log di sistema in tempo reale.
 - **Gestione Posizioni**: Visualizzazione posizioni aperte e storico chiuse.
 

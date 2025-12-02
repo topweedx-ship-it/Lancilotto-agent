@@ -10,7 +10,8 @@ Edit `main.py` CONFIG:
 CONFIG = {
     ...
     "SCREENING_ENABLED": True,  # ← Set to True
-    "TOP_N_COINS": 15,          # Number of coins to trade
+    "TOP_N_COINS": 20,          # Increased to 20 for better rotation pool
+    "ANALYSIS_BATCH_SIZE": 5,   # Number of coins to analyze per cycle
     ...
 }
 ```
@@ -61,7 +62,7 @@ The bot will now:
 - Select coins dynamically via screening
 - Rebalance every Sunday
 - Update scores daily
-- Fall back to BTC/ETH/SOL if screening fails
+- Execute smart rotation trading cycles
 
 ## How It Works
 
@@ -74,12 +75,24 @@ Run hard filters (volume, market cap, etc.)
     ↓
 Score coins (momentum, volume, volatility, etc.)
     ↓
-Select top N coins
+Select top N coins (e.g., 20)
     ↓
 Daily 00:00 UTC → Update scores for selected coins
     ↓
-Every 3 minutes → Use cached selection for trading
+Every 5 minutes → Trading Cycle with Smart Rotation:
+    1. MANAGEMENT PHASE: Analyze ALL open positions (Close/Hold)
+    2. SCOUTING PHASE: Analyze next batch of 5 candidates (Open)
 ```
+
+### Flow Detail
+
+1. **Initialization**: Creates CoinScreener if `SCREENING_ENABLED=True`
+2. **Weekly**: Runs full rebalancing (Sundays)
+3. **Daily**: Updates scores for current selection
+4. **Per Cycle (5 min)**:
+   - **Management Phase**: Prioritizes checking *all* open positions. AI decides whether to CLOSE or HOLD. No new positions are opened here.
+   - **Scouting Phase**: Selects a batch of `ANALYSIS_BATCH_SIZE` (default 5) coins from the `TOP_N_COINS` list, rotating through them in subsequent cycles. AI looks for *new* OPEN opportunities only. Checks prevent duplicate trades on held assets.
+5. **Fallback**: If screening fails, reverts to `FALLBACK_TICKERS`.
 
 ### Hard Filters (Exclusion Criteria)
 
@@ -112,7 +125,8 @@ Coins must meet ALL these requirements:
 ```python
 CONFIG = {
     "SCREENING_ENABLED": True,
-    "TOP_N_COINS": 15,                       # How many to select
+    "TOP_N_COINS": 20,                       # Total pool of coins to select
+    "ANALYSIS_BATCH_SIZE": 5,                # Coins to scout per cycle
     "FALLBACK_TICKERS": ["BTC", "ETH", "SOL"], # Used if screening fails
     ...
 }
@@ -178,11 +192,11 @@ Look for these log messages:
 
 ```
 🔄 Rebalance settimanale: eseguo screening completo...
-✅ Screening complete: Selected 5 coins
-  1. BTC: 87.42 points
-  2. ETH: 82.15 points
-  ...
-🎯 Trading su: BTC, ETH, SOL, AVAX, LINK
+✅ Screening complete: Selected 20 coins
+...
+🎯 Target: 2 in gestione, 5 in scouting
+   Gestione: BTC, SOL
+   Scouting: AVAX, LINK, UNI, DOGE, MATIC
 ```
 
 ### Cache Location
@@ -346,7 +360,7 @@ coin.last_updated  # datetime
 1. ✅ Enable screening in main.py
 2. ✅ Run example_screener.py to test
 3. ✅ Monitor first few runs via logs
-4. ✅ Query database to see results
+4. ✅ Query database to verify results
 5. ✅ Adjust filters/weights based on your strategy
 6. ✅ Set up monitoring alerts (optional)
 
@@ -388,5 +402,8 @@ coin.last_updated  # datetime
                  ↓
 ┌─────────────────────────────────────────────────┐
 │    Trading Cycle (analyze → decide → execute)   │
+│                                                 │
+│  1. Management Phase (Open Positions)           │
+│  2. Scouting Phase (Rotation Batch)             │
 └─────────────────────────────────────────────────┘
 ```
