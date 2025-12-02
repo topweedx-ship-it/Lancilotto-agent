@@ -54,6 +54,8 @@ from notifications import notifier
 
 # Leggi TESTNET da variabile d'ambiente (default: True)
 TESTNET_ENV = os.getenv("TESTNET", "true").lower()
+SCREENING_ENV = os.getenv("SCREENING_ENABLED", "false").lower()
+
 CONFIG = {
     # Trading
     "TESTNET": TESTNET_ENV in ("true", "1", "yes"),
@@ -61,7 +63,7 @@ CONFIG = {
     "CYCLE_INTERVAL_MINUTES": 5,
 
     # Coin Screening
-    "SCREENING_ENABLED": True,  # Set to True to enable dynamic coin selection
+    "SCREENING_ENABLED": SCREENING_ENV in ("true", "1", "yes"),
     "TOP_N_COINS": 20,          # Aumentato per avere più pool di scelta
     "ANALYSIS_BATCH_SIZE": 5,   # Quante coin analizzare per ciclo (rotazione)
     "REBALANCE_DAY": "sunday",
