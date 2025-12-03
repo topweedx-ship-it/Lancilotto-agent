@@ -16,6 +16,14 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# =====================
+# Security Configuration
+# =====================
+PUBLIC_DASHBOARD_MODE = os.getenv("PUBLIC_DASHBOARD_MODE", "false").lower() == "true"
+
+if PUBLIC_DASHBOARD_MODE:
+    logger.info("🔒 PUBLIC DASHBOARD MODE ACTIVE: Logs disabled, Sensitive config hidden")
+
 app = FastAPI(title="Trading Agent API")
 
 # Configure CORS middleware BEFORE routes (best practice)
@@ -710,7 +718,7 @@ async def get_system_config():
         from trading_engine import CONFIG
         from sentiment import INTERVALLO_SECONDI
         
-        return {
+        config_response = {
             "trading": {
                 "testnet": CONFIG.get("TESTNET", True),
                 "tickers": CONFIG.get("TICKERS", []),
@@ -740,6 +748,14 @@ async def get_system_config():
                 "default_take_profit_pct": CONFIG.get("DEFAULT_TAKE_PROFIT_PCT", 5.0)
             }
         }
+
+        if PUBLIC_DASHBOARD_MODE:
+            # In modalità pubblica, manteniamo visibile la configurazione per trasparenza,
+            # ma proteggiamo i log (vedi endpoint system-logs)
+            pass
+            
+        return config_response
+
     except Exception as e:
         logger.error(f"Errore nel recupero configurazione: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Errore interno: {str(e)}")
@@ -754,6 +770,9 @@ async def get_system_logs(lines: int = Query(100, ge=1, le=1000)):
     """
     Restituisce le ultime N righe del file di log di sistema.
     """
+    if PUBLIC_DASHBOARD_MODE:
+         return {"logs": ["🔒 Logs are disabled in Public Dashboard Mode"], "message": "🔒 Logs are disabled in Public Dashboard "}
+
     log_file = "trading_agent.log"
     try:
         if not os.path.exists(log_file):

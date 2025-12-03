@@ -42,3 +42,6 @@ class BybitProvider(BaseProvider):
             logger.error(f"Bybit fetch error for {symbol}: {e}")
             return {}
 
+
+
+

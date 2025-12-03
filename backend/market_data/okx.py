@@ -45,3 +45,6 @@ class OkxProvider(BaseProvider):
             logger.error(f"OKX fetch error for {symbol}: {e}")
             return {}
 
+
+
+

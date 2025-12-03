@@ -51,3 +51,6 @@ class BinanceProvider(BaseProvider):
             logger.error(f"Error fetching Binance data for {symbol}: {e}")
             return {"error": str(e)}
 
+
+
+

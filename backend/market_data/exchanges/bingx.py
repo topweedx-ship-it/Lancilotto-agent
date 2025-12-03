@@ -43,3 +43,6 @@ class BingxProvider(BaseProvider):
             logger.error(f"BingX fetch error for {symbol}: {e}")
             return {}
 
+
+
+

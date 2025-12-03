@@ -49,3 +49,6 @@ class KrakenProvider(BaseProvider):
             logger.error(f"Kraken fetch error for {symbol}: {e}")
             return {}
 
+
+
+

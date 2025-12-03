@@ -44,3 +44,6 @@ class GateProvider(BaseProvider):
             logger.error(f"Gate fetch error for {symbol}: {e}")
             return {}
 
+
+
+

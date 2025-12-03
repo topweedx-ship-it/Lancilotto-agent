@@ -43,3 +43,6 @@ class CryptoComProvider(BaseProvider):
             logger.error(f"Crypto.com fetch error for {symbol}: {e}")
             return {}
 
+
+
+

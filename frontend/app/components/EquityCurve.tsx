@@ -154,3 +154,6 @@ export function EquityCurve({ data }: EquityCurveProps) {
 }
 
 
+
+
+

@@ -43,3 +43,6 @@ class HtxProvider(BaseProvider):
             logger.error(f"HTX fetch error for {symbol}: {e}")
             return {}
 
+
+
+

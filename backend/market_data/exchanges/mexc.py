@@ -43,3 +43,6 @@ class MexcProvider(BaseProvider):
             logger.error(f"MEXC fetch error for {symbol}: {e}")
             return {}
 
+
+
+

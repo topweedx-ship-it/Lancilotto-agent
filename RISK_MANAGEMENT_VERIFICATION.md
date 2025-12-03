@@ -271,3 +271,6 @@ Il sistema utilizza **monitoring manuale** per SL/TP invece di ordini nativi del
 **Status finale:** ✅ **APPROVATO** (con nota su monitoring manuale SL/TP)
 
 
+
+
+

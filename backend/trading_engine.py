@@ -741,6 +741,8 @@ Daily P&L: ${risk_manager.daily_pnl:.2f}
                 sym_scout = decision_scout.get("symbol")
                 conf_scout = decision_scout.get("confidence", 0)
                 
+                trend_info = ""  # Initialize default
+                
                 if op_scout == "open":
                     if sym_scout not in tickers_scout:
                         logger.warning(f"⚠️ AI ha suggerito {sym_scout} che non è nei candidati ({tickers_scout})")

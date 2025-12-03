@@ -33,3 +33,6 @@
 - Aggiornata configurazione `uv` e `pyproject.toml`.
 - Migliorata gestione errori nel `trading_engine`.
 
+
+
+

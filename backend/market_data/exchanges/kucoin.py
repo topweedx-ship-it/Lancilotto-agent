@@ -45,3 +45,6 @@ class KucoinProvider(BaseProvider):
             logger.error(f"KuCoin fetch error for {symbol}: {e}")
             return {}
 
+
+
+

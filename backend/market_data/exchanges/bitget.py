@@ -43,3 +43,6 @@ class BitgetProvider(BaseProvider):
             logger.error(f"Bitget fetch error for {symbol}: {e}")
             return {}
 
+
+
+
