@@ -52,7 +52,7 @@ COPY backend/ ./backend/
 RUN find backend/ -name "*.py" -exec dirname {} \; | xargs -I {} touch {}/__init__.py
 
 # Copy frontend build to backend static directory
-COPY --from=frontend-build /app/dist ./static
+COPY --from=frontend-build /app/static ./static 
 
 # Create logs directory and set permissions
 RUN mkdir -p /app/logs && chown -R appuser:appuser /app
