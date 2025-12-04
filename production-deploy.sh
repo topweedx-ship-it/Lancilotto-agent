@@ -44,13 +44,13 @@ setup_env() {
     log_info "Configuring backend/.env file..."
     echo ""
     
-    if [ ! -f "env_prod.example" ]; then
-        log_error "env_prod.example file not found. Cannot create .env file."
+    if [ ! -f "backend/env.example" ]; then
+        log_error "backend/env.example file not found. Cannot create .env file."
         exit 1
     fi
     
     # Create .env file from example
-    cp env_prod.example backend/.env
+    cp backend/env.example backend/.env
     
     log_info "Please enter the following configuration values:"
     log_info "(Press Enter to skip optional variables or use default values)"
