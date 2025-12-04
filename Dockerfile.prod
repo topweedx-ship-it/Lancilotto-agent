@@ -57,8 +57,8 @@ COPY --from=frontend-build /app/static ./backend/static
 # Create logs directory and set permissions
 RUN mkdir -p /app/logs && chown -R appuser:appuser /app
 
-# Switch to non-root user
-USER appuser
+# Switch to non-root user (commented out due to permission issues in production)
+# USER appuser
 
 # Production environment variables
 ENV VIRTUAL_ENV=/app/.venv \

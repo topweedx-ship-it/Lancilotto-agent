@@ -12,7 +12,7 @@ from typing import Optional
 from dotenv import load_dotenv
 
 # Setup logging PRIMA di tutto
-log_filename = "trading_agent.log"
+log_filename = "/app/logs/trading_agent.log"
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s | %(levelname)s | %(name)s | %(message)s',
