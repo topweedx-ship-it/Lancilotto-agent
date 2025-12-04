@@ -40,8 +40,6 @@ WORKDIR /app
 COPY backend/pyproject.toml backend/uv.lock ./
 
 # Install Python dependencies for production
-# Install CPU-only torch first to avoid CUDA version
-RUN pip install torch --index-url https://download.pytorch.org/whl/cpu
 RUN uv sync --frozen --no-install-project
 
 # Create non-root user for security
