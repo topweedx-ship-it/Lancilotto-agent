@@ -208,8 +208,7 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
-node_modules
-backend/.env_prod
+node_modules 
 
 
 # Frontend build assets
