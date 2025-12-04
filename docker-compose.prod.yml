@@ -261,8 +261,3 @@ volumes:
 networks:
   trading-network:
     driver: bridge
-    driver_opts:
-      com.docker.network.bridge.name: trading_prod_bridge
-    ipam:
-      config:
-        - subnet: 172.20.0.0/16

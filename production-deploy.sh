@@ -186,6 +186,14 @@ load_env() {
     export ENVIRONMENT=production
     export DEBUG=false
     
+    # Create .env file in root for docker-compose to read automatically
+    # This allows docker compose to work even when run directly
+    log_info "Creating .env file in root for docker-compose..."
+    grep -E "^(POSTGRES_PASSWORD|DB_PASSWORD)=" backend/.env > .env 2>/dev/null || true
+    if [ -f .env ]; then
+        log_success "Created .env file in root"
+    fi
+    
     log_success "Environment variables loaded"
 }
 
@@ -242,11 +250,19 @@ build_image() {
     # Build with production compose
     docker compose -f docker-compose.prod.yml build --parallel
 
-    # Tag the image
-    docker tag ${IMAGE_NAME}:latest ${DOCKER_REGISTRY}/${IMAGE_NAME}:${TAG}
-    docker tag ${DOCKER_REGISTRY}/${IMAGE_NAME}:${TAG} ${DOCKER_REGISTRY}/${IMAGE_NAME}:latest
+    # Tag the image - use the built image name from docker-compose
+    # The image is built as trading-agent-app by docker-compose
+    if docker images | grep -q "trading-agent-app"; then
+        docker tag trading-agent-app:latest ${IMAGE_NAME}:latest 2>/dev/null || true
+    fi
+    
+    # Tag for registry (optional, skipped for local deployment)
+    if [ -n "${DOCKER_REGISTRY}" ] && [ "${DOCKER_REGISTRY}" != "your-registry.com" ]; then
+        docker tag ${IMAGE_NAME}:latest ${DOCKER_REGISTRY}/${IMAGE_NAME}:${TAG} 2>/dev/null || true
+        docker tag ${DOCKER_REGISTRY}/${IMAGE_NAME}:${TAG} ${DOCKER_REGISTRY}/${IMAGE_NAME}:latest 2>/dev/null || true
+    fi
 
-    log_success "Image built and tagged: ${DOCKER_REGISTRY}/${IMAGE_NAME}:${TAG}"
+    log_success "Image built and tagged: ${IMAGE_NAME}:latest"
 }
 
 # Push to registry
@@ -266,6 +282,10 @@ deploy() {
 
     # Create backup before deployment
     create_backup
+
+    # Clean up any existing networks that might cause conflicts
+    log_info "Cleaning up Docker networks..."
+    docker network prune -f 2>/dev/null || true
 
     # Pull latest images
     docker compose -f docker-compose.prod.yml pull
