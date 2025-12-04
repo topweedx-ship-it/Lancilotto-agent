@@ -11,6 +11,7 @@ from model_manager import get_model_manager
 from db_utils import get_connection
 from token_tracker import get_token_tracker
 from notifications import notifier
+from backtrack_analysis import BacktrackAnalyzer
 import threading
 import logging
 
@@ -759,6 +760,34 @@ async def get_system_config():
     except Exception as e:
         logger.error(f"Errore nel recupero configurazione: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Errore interno: {str(e)}")
+
+
+# =====================
+# Backtrack Analysis API Endpoints
+# =====================
+
+@app.get("/api/backtrack-analysis")
+async def get_backtrack_analysis(days: int = Query(30, ge=1, le=365, description="Number of days to analyze")):
+    """
+    Restituisce l'analisi backtrack delle decisioni AI e performance di trading.
+
+    Args:
+        days: Numero di giorni da analizzare (default 30, max 365)
+
+    Returns:
+        Dict con analisi completa delle decisioni, performance e raccomandazioni
+    """
+    try:
+        analyzer = BacktrackAnalyzer()
+        report = analyzer.run_full_analysis(days_back=days, save_to_file=False)
+
+        if not report:
+            raise HTTPException(status_code=500, detail="Failed to generate backtrack analysis")
+
+        return report
+    except Exception as e:
+        logger.error(f"Error in backtrack analysis: {e}")
+        raise HTTPException(status_code=500, detail=f"Backtrack analysis failed: {str(e)}")
 
 
 # =====================

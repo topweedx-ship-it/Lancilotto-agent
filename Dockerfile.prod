@@ -1,0 +1,79 @@
+# Production Dockerfile for Trading Agent
+# Security hardened, optimized for production deployment
+
+FROM node:20-alpine AS frontend-build
+
+WORKDIR /app
+
+# Install pnpm globally
+RUN npm install -g pnpm
+
+# Copy package files first for better caching
+COPY frontend/package.json frontend/pnpm-lock.yaml ./
+
+# Install dependencies (cached if package.json doesn't change)
+RUN pnpm install --frozen-lockfile
+
+# Copy frontend source code
+COPY frontend/ .
+
+# Build frontend for production
+RUN pnpm run build
+
+# Backend production build
+FROM python:3.13-slim AS backend-build
+
+# Install system dependencies for production
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install uv
+RUN pip install uv
+
+WORKDIR /app
+
+# Copy dependency files first for better caching
+COPY backend/pyproject.toml backend/uv.lock ./
+
+# Install Python dependencies for production
+RUN uv sync --frozen --no-install-project
+
+# Create non-root user for security
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
+# Now copy the backend source code
+COPY backend/ ./backend/
+
+# Create __init__.py files for all directories containing Python files
+RUN find backend/ -name "*.py" -exec dirname {} \; | xargs -I {} touch {}/__init__.py
+
+# Copy frontend build to backend static directory
+COPY --from=frontend-build /app/dist ./static
+
+# Create logs directory and set permissions
+RUN mkdir -p /app/logs && chown -R appuser:appuser /app
+
+# Switch to non-root user
+USER appuser
+
+# Production environment variables
+ENV VIRTUAL_ENV=/app/.venv \
+    PATH="$VIRTUAL_ENV/bin:$PATH" \
+    PYTHONPATH=/app/backend \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    ENVIRONMENT=production \
+    PYTHONHASHSEED=random
+
+# Expose port
+EXPOSE 5611
+
+WORKDIR /app/backend
+
+# Health check for production
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:5611/api/health || exit 1
+
+# Production command with multiple workers
+CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "5611", "--workers", "4", "--loop", "uvloop"]

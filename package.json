@@ -1,5 +1,6 @@
 {
   "name": "trading-agent",
+  "version": "0.1.1",
   "private": true,
   "scripts": {
     "dev": "concurrently \"pnpm run dev:backend\" \"pnpm run dev:frontend\"",

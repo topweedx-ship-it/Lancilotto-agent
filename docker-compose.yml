@@ -18,18 +18,35 @@ services:
       retries: 5
 
   app:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: backend-build
+      # Enable Docker BuildKit for faster builds
+      args:
+        BUILDKIT_INLINE_CACHE: 1
+      cache_from:
+        - trading-agent:latest
     container_name: trading-agent
     restart: unless-stopped
     ports:
       - "5611:5611"
     volumes:
       - ./data:/app/data
+      # Mount logs for easier access during development
+      - ./backend/trading_agent.log:/app/backend/trading_agent.log
     env_file:
       - backend/.env
     depends_on:
       db:
         condition: service_healthy
+    # Resource limits to prevent memory issues during builds
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 1G
 
 volumes:
   postgres_data:

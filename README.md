@@ -1,6 +1,6 @@
-# Trading Agent 
+# Trading Agent
 
-**Versione: 0.1.0**
+**Versione: 0.1.1**
 
 Trading Agent è un progetto open source ispirato a [Alpha Arena](https://nof1.ai/), una piattaforma di trading AI-driven che promuove la competizione tra agenti LLMs. L'obiettivo di questo progetto è sviluppare un agente di trading automatizzato, capace di analizzare dati di mercato, notizie, sentiment e segnali provenienti da grandi movimenti ("whale alert") per prendere decisioni di trading informate.
 
@@ -35,6 +35,124 @@ pnpm install
 pnpm dev
 ```
 La dashboard sarà accessibile a `http://localhost:5621`.
+
+## 🚀 Docker Deployment
+
+Il progetto supporta sia deployment di sviluppo che produzione completamente containerizzati.
+
+### 🛠️ Sviluppo (Ottimizzato)
+
+Build ottimizzato per velocità e sviluppo iterativo:
+
+#### Caratteristiche
+- **Build ottimizzato**: ~8-9 min primo build, ~1-2 min rebuild successivi
+- **Layer caching intelligente**: dipendenze separate dal codice
+- **Hot reload**: modifiche codice applicate automaticamente
+- **Debug tools**: logging e monitoring integrati
+
+#### Comandi Rapidi Sviluppo
+```bash
+# Build ottimizzato (raccomandato)
+make build
+
+# Sviluppo completo: build + avvia + logs
+make dev
+
+# Solo avvia servizi esistenti
+make up
+
+# Analisi backtrack nel container
+make backtrack-analysis
+
+# Test delle ottimizzazioni
+./benchmark-build.sh
+```
+
+#### Deployment Sviluppo
+```bash
+# Build con Docker Compose
+docker compose build
+
+# Avvia tutto
+docker compose up -d
+
+# App: http://localhost:5611
+# DB: localhost:5432
+```
+
+### 🏭 Produzione (Enterprise-Ready)
+
+Deployment completo per produzione con alta disponibilità, sicurezza e monitoraggio.
+
+#### Caratteristiche Produzione
+- **Sicurezza hardened**: user non-root, read-only filesystem
+- **SSL/TLS**: crittografia end-to-end con Let's Encrypt
+- **Load balancing**: Nginx reverse proxy con rate limiting
+- **Monitoring**: Prometheus + Grafana integrati
+- **Backup automatico**: database e configurazione
+- **Health checks**: monitoraggio continuo dello stato
+- **Zero-downtime updates**: rolling deployment
+- **Logging centralizzato**: JSON logs per analisi
+
+#### Setup Produzione
+```bash
+# 1. Configura ambiente produzione
+cp env.prod.example .env.prod
+nano .env.prod  # Inserisci le tue credenziali
+
+# 2. Configura SSL (Let's Encrypt)
+mkdir -p ssl/production
+# Ottieni certificati SSL e copiali in ssl/production/
+
+# 3. Deploy completo
+./production-deploy.sh
+```
+
+#### Servizi Produzione
+- **Trading Agent**: App principale con 4 workers uvicorn
+- **PostgreSQL**: Database con backup automatico
+- **Nginx**: Reverse proxy con SSL e sicurezza
+- **Prometheus**: Metriche e monitoraggio
+- **Grafana**: Dashboard e visualizzazioni
+- **Backup**: Servizio backup automatico
+
+#### Accessi Produzione
+- **App**: https://yourdomain.com
+- **Grafana**: https://yourdomain.com:3000
+- **Prometheus**: https://yourdomain.com:9090
+- **API Health**: https://yourdomain.com/api/health
+
+#### Comandi Produzione
+```bash
+# Deploy completo con backup
+./production-deploy.sh
+
+# Backup manuale
+./backup/backup.sh
+
+# Monitora logs
+docker compose -f docker-compose.prod.yml logs -f
+
+# Update rolling
+docker compose -f docker-compose.prod.yml up -d --scale app=3
+```
+
+### 📊 Ottimizzazioni Implementate
+
+#### Sviluppo
+- **Caching dipendenze**: `pyproject.toml` e `uv.lock` cachati separatamente
+- **Frontend caching**: `package.json` e `pnpm-lock.yaml` cachati
+- **BuildKit**: build paralleli e cache intelligente
+- **.dockerignore**: contesto build ridotto
+
+#### Produzione
+- **Multi-stage builds**: ottimizzati per runtime
+- **Security hardening**: no-new-privileges, read-only
+- **Resource limits**: CPU e memoria controllati
+- **Health checks**: monitoraggio automatico
+- **Logging strutturato**: JSON logs per centralizzazione
+
+Vedi [`DOCKER_OPTIMIZATION_README.md`](DOCKER_OPTIMIZATION_README.md) per dettagli tecnici sviluppo e [`PRODUCTION_README.md`](PRODUCTION_README.md) per deployment produzione.
 
 ## Configurazione
 

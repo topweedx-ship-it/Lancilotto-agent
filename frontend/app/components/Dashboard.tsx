@@ -9,6 +9,7 @@ import { PerformanceOverview } from './PerformanceOverview'
 import { SystemConfig } from './SystemConfig'
 import { DecisionViewer } from './DecisionViewer'
 import { DecisionHistory } from './DecisionHistory'
+import { BacktrackAnalysis } from './BacktrackAnalysis'
 
 interface BalancePoint {
   timestamp: string
@@ -235,6 +236,11 @@ export function Dashboard() {
               </p>
             </div>
             <DecisionHistory />
+          </article>
+
+          {/* Backtrack Analysis */}
+          <article className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <BacktrackAnalysis />
           </article>
 
           {/* Closed Positions */}

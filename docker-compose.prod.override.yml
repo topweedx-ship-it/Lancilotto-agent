@@ -1,0 +1,86 @@
+# Production Override Configuration
+# This file contains environment-specific overrides
+# Copy and modify for different production environments
+
+version: '3.8'
+
+services:
+  # Override app service for specific environment
+  app:
+    environment:
+      # Environment specific variables
+      ENVIRONMENT: production
+      LOG_LEVEL: WARNING  # Less verbose logging in production
+    deploy:
+      replicas: 2  # Multiple replicas for high availability
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        monitor: 30s
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+
+  # Override nginx for SSL and domain configuration
+  nginx:
+    environment:
+      - DOMAIN=your-production-domain.com
+    volumes:
+      - ./ssl/production:/etc/ssl/certs:ro  # Mount production SSL certificates
+    ports:
+      - "80:80"
+      - "443:443"
+
+  # Production backup configuration
+  backup:
+    environment:
+      BACKUP_RETENTION: 30
+    volumes:
+      - ./backup/production:/backup  # Production backup volume
+
+  # Production monitoring with external endpoints
+  prometheus:
+    volumes:
+      - ./monitoring/prometheus/prod.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_prod_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=720h'  # 30 days retention
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'  # Enable admin API for maintenance
+
+  # Grafana with production settings
+  grafana:
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_INSTALL_PLUGINS: "grafana-piechart-panel,grafana-worldmap-panel"
+      GF_SMTP_ENABLED: "true"
+      GF_SMTP_HOST: ${SMTP_SERVER:-smtp.gmail.com}
+      GF_SMTP_USER: ${SMTP_USERNAME}
+      GF_SMTP_PASSWORD: ${SMTP_PASSWORD}
+    volumes:
+      - grafana_prod_data:/var/lib/grafana
+
+# Production-specific volumes
+volumes:
+  prometheus_prod_data:
+    driver: local
+  grafana_prod_data:
+    driver: local
+
+# Production network with custom configuration
+networks:
+  trading-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+    driver_opts:
+      com.docker.network.bridge.name: trading_prod_bridge
