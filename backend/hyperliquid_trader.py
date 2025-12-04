@@ -1,4 +1,5 @@
 import json
+import logging
 import time
 from decimal import Decimal, ROUND_DOWN
 from typing import Dict, Any
@@ -11,6 +12,8 @@ from hyperliquid.exchange import Exchange
 from hyperliquid.utils import constants
 from hyperliquid.utils.error import ClientError
 from hyperliquid_utils import init_info_with_retry
+
+logger = logging.getLogger(__name__)
 
 
 class HyperLiquidTrader:
