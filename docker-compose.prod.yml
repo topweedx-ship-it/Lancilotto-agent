@@ -45,10 +45,9 @@ services:
       context: .
       dockerfile: Dockerfile.prod
       target: backend-build
-      tags:
-        - trading-agent:${TAG:-latest}
       args:
         BUILDKIT_INLINE_CACHE: 1
+    image: trading-agent:${TAG:-latest}
     container_name: trading-agent-prod
     restart: always
     env_file:
