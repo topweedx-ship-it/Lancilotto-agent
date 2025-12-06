@@ -820,74 +820,76 @@ Daily P&L: ${risk_manager.daily_pnl:.2f}
                             if direction_scout == "short" and not CONFIG["ALLOW_SHORTS"]:
                                 logger.warning(f"⛔ SHORT disabilitati per configurazione (ALLOW_SHORTS=false)")
                                 decision_scout['execution_result'] = {"status": "blocked", "reason": "SHORTS disabled by config"}
-                            elif can_trade := risk_manager.can_open_position(balance_usd); can_trade["allowed"]:
-                                res = trader.execute_signal_with_risk(decision_scout, risk_manager, balance_usd)
-                                # Log execution...
-                                if 'execution_result' not in decision_scout:
-                                    decision_scout['execution_result'] = res
-
-                                if res.get("status") == "ok":
-                                    try:
-                                        entry_price = res.get("fill_price")
-                                        if not entry_price:
-                                            # Fallback to current market price from indicators
-                                            if sym_scout in indicators_map and 'current' in indicators_map[sym_scout]:
-                                                entry_price = indicators_map[sym_scout]['current'].get('price', 0)
-
-                                        trade_id = db_utils.log_executed_trade(
-                                            bot_operation_id=op_id,  # Link to the logged operation
-                                            trade_type="open",
-                                            symbol=sym_scout,
-                                            direction=decision_scout.get("direction", "long"),
-                                            size=res.get("size", 0),
-                                            entry_price=entry_price or 0,
-                                            leverage=decision_scout.get("leverage", 1),
-                                            stop_loss_price=decision_scout.get("stop_loss", 0),
-                                            take_profit_price=decision_scout.get("take_profit", 0),
-                                            hl_order_id=res.get("order_id"),
-                                            hl_fill_price=res.get("fill_price"),
-                                            size_usd=res.get("size_usd"),
-                                            raw_response=res
-                                        )
-                                        bot_state.active_trades[sym_scout] = trade_id
-                                        logger.info(f"✅ Trade {sym_scout} aperto e loggato (ID: {trade_id})")
-
-                                        # Notify - Calculate actual SL/TP prices from percentages
-                                        try:
-                                            risk_info = res.get("risk_management", {})
-                                            sl_pct = risk_info.get("stop_loss_pct", 2.0)
-                                            tp_pct = risk_info.get("take_profit_pct", 5.0)
-                                            direction = decision_scout.get("direction", "long")
-
-                                            # Calculate actual prices based on entry and direction
-                                            if entry_price and entry_price > 0:
-                                                if direction == "long":
-                                                    stop_loss_price = entry_price * (1 - sl_pct / 100)
-                                                    take_profit_price = entry_price * (1 + tp_pct / 100)
-                                                else:  # short
-                                                    stop_loss_price = entry_price * (1 + sl_pct / 100)
-                                                    take_profit_price = entry_price * (1 - tp_pct / 100)
-                                            else:
-                                                stop_loss_price = 0.0
-                                                take_profit_price = 0.0
-
-                                            notifier.notify_trade_opened(
-                                                symbol=sym_scout,
-                                                direction=direction,
-                                                size_usd=res.get("size_usd", 0.0),
-                                                leverage=decision_scout.get("leverage", 1),
-                                                entry_price=entry_price or 0,
-                                                stop_loss=stop_loss_price,
-                                                take_profit=take_profit_price
-                                            )
-                                        except Exception as e:
-                                            logger.warning(f"⚠️ Notify error: {e}")
-
-                                    except Exception as log_err:
-                                        logger.error(f"❌ Errore logging apertura: {log_err}")
                             else:
-                                logger.warning(f"⛔ Risk Manager blocca apertura: {can_trade['reason']}")
-                                decision_scout['execution_result'] = {"status": "blocked", "reason": can_trade['reason']}
+                                can_trade = risk_manager.can_open_position(balance_usd)
+                                if can_trade["allowed"]:
+                                    res = trader.execute_signal_with_risk(decision_scout, risk_manager, balance_usd)
+                                    # Log execution...
+                                    if 'execution_result' not in decision_scout:
+                                        decision_scout['execution_result'] = res
+
+                                    if res.get("status") == "ok":
+                                        try:
+                                            entry_price = res.get("fill_price")
+                                            if not entry_price:
+                                                # Fallback to current market price from indicators
+                                                if sym_scout in indicators_map and 'current' in indicators_map[sym_scout]:
+                                                    entry_price = indicators_map[sym_scout]['current'].get('price', 0)
+
+                                            trade_id = db_utils.log_executed_trade(
+                                                bot_operation_id=op_id,  # Link to the logged operation
+                                                trade_type="open",
+                                                symbol=sym_scout,
+                                                direction=decision_scout.get("direction", "long"),
+                                                size=res.get("size", 0),
+                                                entry_price=entry_price or 0,
+                                                leverage=decision_scout.get("leverage", 1),
+                                                stop_loss_price=decision_scout.get("stop_loss", 0),
+                                                take_profit_price=decision_scout.get("take_profit", 0),
+                                                hl_order_id=res.get("order_id"),
+                                                hl_fill_price=res.get("fill_price"),
+                                                size_usd=res.get("size_usd"),
+                                                raw_response=res
+                                            )
+                                            bot_state.active_trades[sym_scout] = trade_id
+                                            logger.info(f"✅ Trade {sym_scout} aperto e loggato (ID: {trade_id})")
+
+                                            # Notify - Calculate actual SL/TP prices from percentages
+                                            try:
+                                                risk_info = res.get("risk_management", {})
+                                                sl_pct = risk_info.get("stop_loss_pct", 2.0)
+                                                tp_pct = risk_info.get("take_profit_pct", 5.0)
+                                                direction = decision_scout.get("direction", "long")
+
+                                                # Calculate actual prices based on entry and direction
+                                                if entry_price and entry_price > 0:
+                                                    if direction == "long":
+                                                        stop_loss_price = entry_price * (1 - sl_pct / 100)
+                                                        take_profit_price = entry_price * (1 + tp_pct / 100)
+                                                    else:  # short
+                                                        stop_loss_price = entry_price * (1 + sl_pct / 100)
+                                                        take_profit_price = entry_price * (1 - tp_pct / 100)
+                                                else:
+                                                    stop_loss_price = 0.0
+                                                    take_profit_price = 0.0
+
+                                                notifier.notify_trade_opened(
+                                                    symbol=sym_scout,
+                                                    direction=direction,
+                                                    size_usd=res.get("size_usd", 0.0),
+                                                    leverage=decision_scout.get("leverage", 1),
+                                                    entry_price=entry_price or 0,
+                                                    stop_loss=stop_loss_price,
+                                                    take_profit=take_profit_price
+                                                )
+                                            except Exception as e:
+                                                logger.warning(f"⚠️ Notify error: {e}")
+
+                                        except Exception as log_err:
+                                            logger.error(f"❌ Errore logging apertura: {log_err}")
+                                else:
+                                    logger.warning(f"⛔ Risk Manager blocca apertura: {can_trade['reason']}")
+                                    decision_scout['execution_result'] = {"status": "blocked", "reason": can_trade['reason']}
                         else:
                              logger.info(f"⏩ Skip OPEN {sym_scout}: Conf {conf_scout:.2f} o Trend Check {trend_check_passed}")
                 
