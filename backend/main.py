@@ -838,14 +838,26 @@ async def get_system_logs(lines: int = Query(100, ge=1, le=1000)):
     try:
         if not os.path.exists(log_file):
              return {"logs": [], "message": "Log file not found"}
-        
+
+        # Check if it's a directory (common deployment issue)
+        if os.path.isdir(log_file):
+            logger.warning(f"⚠️ {log_file} is a directory, not a file. Logs unavailable.")
+            return {"logs": ["⚠️ Log file misconfigured (is a directory)"], "message": "Log file is a directory"}
+
         with open(log_file, "r", encoding="utf-8") as f:
             # Leggi le ultime N righe usando deque
             last_lines = deque(f, maxlen=lines)
             return {"logs": list(last_lines)}
+    except IsADirectoryError:
+        logger.warning(f"⚠️ {log_file} is a directory, cannot read logs")
+        return {"logs": ["⚠️ Log file misconfigured"], "message": "Log file is a directory"}
+    except PermissionError:
+        logger.warning(f"⚠️ Permission denied reading {log_file}")
+        return {"logs": ["⚠️ Permission denied"], "message": "Cannot read log file (permissions)"}
     except Exception as e:
         logger.error(f"Errore nella lettura dei log: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Errore interno: {str(e)}")
+        # Return 200 with error message instead of 500
+        return {"logs": [f"⚠️ Error reading logs: {str(e)}"], "message": "Error reading log file"}
 
 
 # Mount static files for frontend
