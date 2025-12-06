@@ -287,8 +287,9 @@ deploy() {
     log_info "Cleaning up Docker networks..."
     docker network prune -f 2>/dev/null || true
 
-    # Pull latest images
-    docker compose -f docker-compose.prod.yml pull
+    # Pull latest images (skip app since it's built locally)
+    log_info "Pulling external images (db, prometheus, grafana)..."
+    docker compose -f docker-compose.prod.yml pull db prometheus grafana backup 2>/dev/null || true
 
     # Deploy with zero downtime
     # Note: Environment variables are already loaded by load_env() function
