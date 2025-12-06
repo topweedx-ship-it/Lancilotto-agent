@@ -48,7 +48,7 @@ def get_whale_alerts():
                 try:
                     dt = datetime.fromtimestamp(int(timestamp))
                     formatted_time = dt.strftime("%d/%m/%Y %H:%M:%S")
-                except:
+                except ValueError:
                     formatted_time = "N/A"
                 
                 # Stampa alert formattato
@@ -92,12 +92,11 @@ def format_whale_alerts_to_string():
                 amount = parts[2].strip('"')
                 usd_value = parts[3].strip('"')
                 description = parts[4].strip('"')
-                link = parts[5]
                 
                 try:
                     dt = datetime.fromtimestamp(int(timestamp))
                     formatted_time = dt.strftime("%d/%m/%Y %H:%M:%S")
-                except:
+                except ValueError:
                     formatted_time = "N/A"
                 
                 result += f"\n{emoji} ALERT del {formatted_time}\n"

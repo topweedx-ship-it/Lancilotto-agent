@@ -1,10 +1,15 @@
 """
 Database utilities for coin screener
 """
+from __future__ import annotations
+
 import logging
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, TYPE_CHECKING
 from datetime import datetime, timezone
 from psycopg2.extras import Json
+
+if TYPE_CHECKING:
+    from .models import CoinScreenerResult, CoinMetrics
 
 logger = logging.getLogger(__name__)
 

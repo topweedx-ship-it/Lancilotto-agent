@@ -648,51 +648,52 @@ class BacktrackAnalyzer:
             logger.error(f"❌ Error linking trades to operations: {e}")
             return 0
 
-    def main():
-        """Main entry point"""
-        import argparse
 
-        parser = argparse.ArgumentParser(description='Trading Agent Backtrack Analysis')
-        parser.add_argument('--days', type=int, default=30, help='Days to analyze (default: 30)')
-        parser.add_argument('--no-save', action='store_true', help='Do not save results to file')
-        parser.add_argument('--link-trades', action='store_true', help='Link existing trades to operations before analysis')
+def main():
+    """Main entry point"""
+    import argparse
 
-        args = parser.parse_args()
+    parser = argparse.ArgumentParser(description='Trading Agent Backtrack Analysis')
+    parser.add_argument('--days', type=int, default=30, help='Days to analyze (default: 30)')
+    parser.add_argument('--no-save', action='store_true', help='Do not save results to file')
+    parser.add_argument('--link-trades', action='store_true', help='Link existing trades to operations before analysis')
 
-        analyzer = BacktrackAnalyzer()
+    args = parser.parse_args()
 
-        # Link existing trades if requested
-        if args.link_trades:
-            linked_count = analyzer.link_existing_trades_to_operations()
-            print(f"Linked {linked_count} trades to operations")
+    analyzer = BacktrackAnalyzer()
 
-        report = analyzer.run_full_analysis(
-            days_back=args.days,
-            save_to_file=not args.no_save
-        )
+    # Link existing trades if requested
+    if args.link_trades:
+        linked_count = analyzer.link_existing_trades_to_operations()
+        print(f"Linked {linked_count} trades to operations")
 
-        if report:
-            print("\n" + "="*80)
-            print("BACKTRACK ANALYSIS SUMMARY")
-            print("="*80)
-            print(f"Period: Last {args.days} days")
-            print(f"Total Decisions: {report['summary']['total_decisions']}")
-            print(f"Execution Rate: {report['summary']['execution_rate']:.1f}%")
-            print(f"Win Rate: {report['summary']['win_rate_overall']:.1f}%")
-            print(f"Avg Profit/Trade: ${report['summary']['avg_profit_per_trade']:.2f}")
-            print(f"Avg Loss/Trade: ${report['summary']['avg_loss_per_trade']:.2f}")
-            print(f"Improvement Areas: {len(report['improvement_areas']['recommendations'])} recommendations")
-            print("="*80)
+    report = analyzer.run_full_analysis(
+        days_back=args.days,
+        save_to_file=not args.no_save
+    )
 
-            if report['improvement_areas']['recommendations']:
-                print("\nRECOMMENDATIONS:")
-                for i, rec in enumerate(report['improvement_areas']['recommendations'], 1):
-                    print(f"{i}. {rec}")
+    if report:
+        print("\n" + "="*80)
+        print("BACKTRACK ANALYSIS SUMMARY")
+        print("="*80)
+        print(f"Period: Last {args.days} days")
+        print(f"Total Decisions: {report['summary']['total_decisions']}")
+        print(f"Execution Rate: {report['summary']['execution_rate']:.1f}%")
+        print(f"Win Rate: {report['summary']['win_rate_overall']:.1f}%")
+        print(f"Avg Profit/Trade: ${report['summary']['avg_profit_per_trade']:.2f}")
+        print(f"Avg Loss/Trade: ${report['summary']['avg_loss_per_trade']:.2f}")
+        print(f"Improvement Areas: {len(report['improvement_areas']['recommendations'])} recommendations")
+        print("="*80)
 
-            print("\nRaw data saved to JSON files for detailed analysis.")
-        else:
-            print("❌ Analysis failed")
-            sys.exit(1)
+        if report['improvement_areas']['recommendations']:
+            print("\nRECOMMENDATIONS:")
+            for i, rec in enumerate(report['improvement_areas']['recommendations'], 1):
+                print(f"{i}. {rec}")
+
+        print("\nRaw data saved to JSON files for detailed analysis.")
+    else:
+        print("❌ Analysis failed")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

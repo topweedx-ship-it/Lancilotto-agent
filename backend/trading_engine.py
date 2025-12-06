@@ -139,7 +139,7 @@ logger.info(f"🌐 Modalità: {network_name}")
 logger.info(f"   Master Account: {MASTER_ACCOUNT_ADDRESS}")
 logger.info(f"   API Wallet: {WALLET_ADDRESS}")
 if IS_TESTNET:
-    logger.info(f"   Testnet URL: https://app.hyperliquid-testnet.xyz/trade")
+    logger.info("   Testnet URL: https://app.hyperliquid-testnet.xyz/trade")
 
 
 # ============================================================
@@ -267,7 +267,6 @@ def trading_cycle() -> None:
     forecasts_json = []
     whale_alerts_list = []
     account_status = {}
-    system_prompt = ""
 
     try:
         # ========================================
@@ -371,9 +370,6 @@ def trading_cycle() -> None:
         # ========================================
         logger.info(f"📡 Recupero dati di mercato per {len(all_tickers)} ticker...")
 
-        # Initialize data containers
-        market_data_map = {} # ticker -> {indicators, news, sentiment, forecast, whale}
-        
         # Indicatori tecnici
         try:
             # analyze_multiple_tickers returns (full_text, json_list)
@@ -384,7 +380,7 @@ def trading_cycle() -> None:
             )
             # Map indicators by ticker
             indicators_map = {item['ticker']: item for item in indicators_list if 'ticker' in item}
-            logger.info(f"✅ Indicatori tecnici recuperati")
+            logger.info("✅ Indicatori tecnici recuperati")
         except Exception as e:
             logger.warning(f"⚠️ Errore indicatori: {e}")
             indicators_map = {}
@@ -420,7 +416,6 @@ def trading_cycle() -> None:
             logger.info("✅ Forecast recuperati")
         except Exception as e:
             logger.warning(f"⚠️ Errore forecast: {e}")
-            forecasts_txt = "Forecast non disponibili"
             forecasts_json = []
             forecasts_map = {}
 
@@ -513,15 +508,6 @@ def trading_cycle() -> None:
 
         # Helper to build prompt
         def build_prompt_data(target_tickers):
-            # Filter indicators text specifically for these tickers would be complex with just text
-            # So we regenerate the text for the specific subset
-            subset_indicators_txt = ""
-            for t in target_tickers:
-                if t in indicators_map:
-                    # Reconstruct string representation (simplified) or use raw JSON in prompt
-                    # Using JSON in prompt might be better for structure
-                    pass
-            
             # For simplicity, we pass the JSON list of indicators for the target tickers
             subset_indicators = [indicators_map[t] for t in target_tickers if t in indicators_map]
             subset_forecasts = [forecasts_map[t] for t in target_tickers if t in forecasts_map]
@@ -677,7 +663,7 @@ Consecutive Losses: {risk_manager.consecutive_losses}
                                 logger.error(f"❌ Errore logging chiusura: {log_err}")
                             
                 elif op_manage == "open":
-                    logger.warning(f"⚠️ AI ha suggerito OPEN in fase GESTIONE. Ignorato.")
+                    logger.warning("⚠️ AI ha suggerito OPEN in fase GESTIONE. Ignorato.")
                 else:
                     logger.info(f"⏸️ GESTIONE: {op_manage} su {sym_manage}")
                     # Log HOLD decision for tracking
@@ -866,7 +852,7 @@ Daily P&L: ${risk_manager.daily_pnl:.2f}
                              logger.info(f"⏩ Skip OPEN {sym_scout}: Conf {conf_scout:.2f} o Trend Check {trend_check_passed}")
                 
                 elif op_scout == "close":
-                    logger.warning(f"⚠️ AI ha suggerito CLOSE in fase SCOUTING. Ignorato.")
+                    logger.warning("⚠️ AI ha suggerito CLOSE in fase SCOUTING. Ignorato.")
 
                     # Log close operation (not executed)
                     decision_scout['cycle_id'] = cycle_id_scout
@@ -936,7 +922,7 @@ Daily P&L: ${risk_manager.daily_pnl:.2f}
                 },
                 source="trading_cycle"
             )
-        except:
+        except Exception:
             pass
 
 

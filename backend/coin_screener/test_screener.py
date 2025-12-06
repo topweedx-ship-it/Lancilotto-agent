@@ -45,8 +45,8 @@ def test_hard_filters():
         days_listed=5  # Too new
     )
 
-    assert filters.check_single_coin(good_coin) == True
-    assert filters.check_single_coin(bad_coin) == False
+    assert filters.check_single_coin(good_coin)
+    assert not filters.check_single_coin(bad_coin)
 
     print("✅ Hard filters test passed")
 
@@ -117,7 +117,7 @@ def test_screener_initialization():
         cache_enabled=True
     )
 
-    assert screener.testnet == True
+    assert screener.testnet
     assert screener.top_n == 3
     assert screener.hl_provider is not None
     assert screener.cg_provider is not None
