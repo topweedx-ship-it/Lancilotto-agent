@@ -284,7 +284,9 @@ class BacktrackAnalyzer:
             if decision['symbol']:
                 analysis['decisions_by_symbol'][decision['symbol']] += 1
             if decision['direction']:
-                analysis['decisions_by_direction'][decision['direction']] += 1
+                # Normalize direction to lowercase for consistency
+                normalized_direction = decision['direction'].lower()
+                analysis['decisions_by_direction'][normalized_direction] += 1
 
             # Confidence analysis
             payload = decision.get('decision_payload', {})
@@ -314,7 +316,8 @@ class BacktrackAnalyzer:
                 # Win rate by categories
                 operation = decision['operation']
                 symbol = decision['symbol']
-                direction = decision['direction']
+                # Normalize direction to lowercase for consistency
+                direction = decision['direction'].lower() if decision['direction'] else None
 
                 if operation not in analysis['outcome_analysis']['win_rate_by_operation']:
                     analysis['outcome_analysis']['win_rate_by_operation'][operation] = {'wins': 0, 'total': 0}
@@ -372,6 +375,55 @@ class BacktrackAnalyzer:
         for dir, stats in analysis['outcome_analysis']['win_rate_by_direction'].items():
             if stats['total'] > 0:
                 stats['win_rate'] = (stats['wins'] / stats['total']) * 100
+
+        # Include orphan trades (trades without bot_operation_id) in direction statistics
+        try:
+            with db_utils.get_connection() as conn:
+                with conn.cursor() as cur:
+                    # Get orphan trades by direction
+                    cur.execute("""
+                        SELECT direction,
+                               COUNT(*) as total,
+                               COUNT(CASE WHEN pnl_usd > 0 THEN 1 END) as wins
+                        FROM executed_trades
+                        WHERE bot_operation_id IS NULL
+                          AND direction IS NOT NULL
+                          AND status = 'closed'
+                        GROUP BY direction
+                    """)
+                    orphan_trades = cur.fetchall()
+
+                    for direction, total, wins in orphan_trades:
+                        dir_lower = direction.lower() if direction else None
+                        if dir_lower:
+                            if dir_lower not in analysis['outcome_analysis']['win_rate_by_direction']:
+                                analysis['outcome_analysis']['win_rate_by_direction'][dir_lower] = {
+                                    'wins': 0,
+                                    'total': 0,
+                                    'win_rate': 0
+                                }
+                            # Add orphan trade stats
+                            analysis['outcome_analysis']['win_rate_by_direction'][dir_lower]['total'] += total
+                            analysis['outcome_analysis']['win_rate_by_direction'][dir_lower]['wins'] += wins
+                            # Recalculate win rate
+                            if analysis['outcome_analysis']['win_rate_by_direction'][dir_lower]['total'] > 0:
+                                analysis['outcome_analysis']['win_rate_by_direction'][dir_lower]['win_rate'] = (
+                                    analysis['outcome_analysis']['win_rate_by_direction'][dir_lower]['wins'] /
+                                    analysis['outcome_analysis']['win_rate_by_direction'][dir_lower]['total']
+                                ) * 100
+
+                    logger.info(f"✅ Added {sum(total for _, total, _ in orphan_trades)} orphan trades to statistics")
+        except Exception as e:
+            logger.warning(f"⚠️ Could not include orphan trades in statistics: {e}")
+
+        # Ensure both long and short directions are always present
+        for direction in ['long', 'short']:
+            if direction not in analysis['outcome_analysis']['win_rate_by_direction']:
+                analysis['outcome_analysis']['win_rate_by_direction'][direction] = {
+                    'wins': 0,
+                    'total': 0,
+                    'win_rate': 0
+                }
 
         # Average market conditions
         if analysis['market_conditions_at_decision']['avg_rsi_at_decision']:

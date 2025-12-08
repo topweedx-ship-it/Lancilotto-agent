@@ -297,33 +297,45 @@ export function TokenUsage() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Header con selettore periodo */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <h2 className="text-base sm:text-lg font-semibold flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-blue-600"></span>
-          Consumo Token LLM
-        </h2>
-        <div className="flex gap-2">
-          {['today', 'week', 'month', 'all'].map((p) => (
+      <div className="bg-gradient-to-r from-cyan-50 to-blue-50 rounded-xl border-2 border-cyan-200 p-5 shadow-sm">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-cyan-600 flex items-center justify-center shadow-md">
+              <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">Consumo Token LLM</h2>
+              <p className="text-sm text-cyan-700">Monitoraggio usage e costi API</p>
+            </div>
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            {['today', 'week', 'month', 'all'].map((p) => (
+              <button
+                key={p}
+                onClick={() => setPeriod(p)}
+                className={`px-4 py-2 text-xs font-bold rounded-lg border-2 transition-all duration-200 ${
+                  period === p
+                    ? 'bg-cyan-600 text-white border-cyan-600 shadow-md'
+                    : 'bg-white text-gray-700 border-cyan-200 hover:border-cyan-500'
+                }`}
+              >
+                {p === 'today' ? 'Oggi' : p === 'week' ? 'Settimana' : p === 'month' ? 'Mese' : 'Tutto'}
+              </button>
+            ))}
             <button
-              key={p}
-              onClick={() => setPeriod(p)}
-              className={`px-3 py-1 text-xs rounded-full border transition-colors ${
-                period === p
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-white text-gray-700 border-gray-300 hover:border-blue-500'
-              }`}
+              onClick={fetchData}
+              className="px-4 py-2 text-xs rounded-lg border-2 border-cyan-200 bg-white text-cyan-700 hover:bg-cyan-50 hover:border-cyan-500 transition-all"
+              title="Aggiorna dati"
             >
-              {p === 'today' ? 'Oggi' : p === 'week' ? 'Settimana' : p === 'month' ? 'Mese' : 'Tutto'}
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
             </button>
-          ))}
-          <button
-            onClick={fetchData}
-            className="px-3 py-1 text-xs rounded-full border border-gray-300 bg-white text-gray-700 hover:border-blue-500"
-          >
-            🔄
-          </button>
+          </div>
         </div>
       </div>
 

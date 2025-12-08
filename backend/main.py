@@ -116,6 +116,15 @@ class OpenPosition(BaseModel):
     snapshot_created_at: datetime
 
 
+class TradeResult(BaseModel):
+    trade_id: int
+    pnl_usd: Optional[float]
+    pnl_pct: Optional[float]
+    status: str
+    exit_reason: Optional[str]
+    closed_at: Optional[datetime]
+
+
 class BotOperation(BaseModel):
     id: int
     created_at: datetime
@@ -126,6 +135,7 @@ class BotOperation(BaseModel):
     leverage: Optional[float]
     raw_payload: Any
     system_prompt: Optional[str]
+    trade_result: Optional[TradeResult] = None
 
 
 class ExecutedTrade(BaseModel):
@@ -291,18 +301,36 @@ async def get_bot_operations(
                         bo.target_portion_of_balance,
                         bo.leverage,
                         bo.raw_payload,
-                        ac.system_prompt
+                        ac.system_prompt,
+                        et.id as trade_id,
+                        et.pnl_usd,
+                        et.pnl_pct,
+                        et.status as trade_status,
+                        et.exit_reason,
+                        et.closed_at
                     FROM bot_operations AS bo
                     LEFT JOIN ai_contexts AS ac ON bo.context_id = ac.id
+                    LEFT JOIN executed_trades AS et ON bo.id = et.bot_operation_id
                     ORDER BY bo.created_at DESC
                     LIMIT %s;
                     """,
                     (limit,),
                 )
                 rows = cur.fetchall()
-        
+
         operations: List[BotOperation] = []
         for row in rows:
+            trade_result = None
+            if row[9] is not None:
+                trade_result = TradeResult(
+                    trade_id=row[9],
+                    pnl_usd=float(row[10]) if row[10] is not None else None,
+                    pnl_pct=float(row[11]) if row[11] is not None else None,
+                    status=row[12],
+                    exit_reason=row[13],
+                    closed_at=row[14]
+                )
+
             operations.append(
                 BotOperation(
                     id=row[0],
@@ -314,9 +342,10 @@ async def get_bot_operations(
                     leverage=float(row[6]) if row[6] is not None else None,
                     raw_payload=row[7],
                     system_prompt=row[8],
+                    trade_result=trade_result,
                 )
             )
-        
+
         return operations
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Errore nel recupero delle operazioni: {str(e)}")
