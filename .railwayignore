@@ -1,0 +1,111 @@
+# Railway ignore file - exclude files not needed for deployment
+# This speeds up the build process and reduces deployment size
+
+# Development files
+.git
+.github
+.vscode
+.idea
+*.md
+!README.md
+!RAILWAY_DEPLOY_GUIDE.md
+
+# Tests
+**/test_*.py
+**/*_test.py
+**/tests/
+**/__tests__/
+
+# Documentation
+docs/
+CHANGELOG.md
+SCREENER_CHANGELOG.md
+FRONTEND_UPDATE.md
+IMPLEMENTATION_SUMMARY.txt
+PRODUCTION_README.md
+DEPLOY_PRODUCTION.md
+PRODUCTION_DEPLOY_FIX.md
+FIX_PRODUCTION_ISSUES.md
+COIN_SCREENER_SETUP.md
+DOCKER_OPTIMIZATION_README.md
+RISK_MANAGEMENT_VERIFICATION.md
+backend/TREND_SYSTEM_README.md
+backend/INTEGRATION_COMPLETE.md
+backend/PHASE2_INTEGRATION_COMPLETE.md
+backend/DATA_TRACKING_ANALYSIS.md
+backend/TELEGRAM_BOT_GUIDE.md
+backend/TELEGRAM_BOT_README.md
+backend/TOKEN_TRACKING_GUIDE.md
+backend/TRADE_HISTORY_IMPLEMENTATION.md
+backend/TREND_SYSTEM_INTEGRATION.md
+backend/STARTUP_NOTIFICATION.md
+
+# Local development
+*.log
+*.sqlite
+*.db
+backend/trading_agent.log
+data/
+
+# Build artifacts and caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+.eggs/
+node_modules/
+.pnpm-store/
+
+# Frontend development (we keep the built static files)
+frontend/node_modules/
+frontend/.vite/
+frontend/dist/
+
+# Docker files (not needed on Railway)
+Dockerfile
+Dockerfile.prod
+docker-compose.yml
+docker-compose.prod.yml
+.dockerignore
+
+# Backup and monitoring
+backup/
+monitoring/
+
+# Scripts not needed in production
+benchmark-build.sh
+build.sh
+production-deploy.sh
+reset_production_db.sh
+update-frontend-vps.sh
+update-frontend.sh
+VPS_FIX_COMMANDS.sh
+reset_production_db.py
+
+# Example files
+backend/example_*.py
+.env.example
+backend/env.example
+
+# Nginx configuration (not needed on Railway)
+nginx/
+
+# Config files for other platforms
+Makefile
+
+# Media files
+*.jpg
+*.png
+logo.png
+img.jpg
+
+# Environment files (use Railway variables instead)
+.env
+.env.*
+backend/.env
+backend/.env.*

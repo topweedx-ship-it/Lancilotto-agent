@@ -2,6 +2,28 @@
 
 Questa guida ti accompagna passo per passo nel deployment del Trading Agent su Railway utilizzando **solo l'interfaccia web**. Non è necessario utilizzare la CLI di Railway.
 
+## ⚡ Quick Start (5 minuti)
+
+Se hai già familiarità con Railway, ecco i passi essenziali:
+
+1. **Crea progetto su [Railway](https://railway.app)** → Collega GitHub
+2. **Deploy PostgreSQL** → Copia `DATABASE_URL`
+3. **Deploy Backend** → Seleziona repo `topweedx-ship-it/Lancilotto-agent`
+   - Root Directory: `backend`
+   - Start Command: `uvicorn main:app --host 0.0.0.0 --port $PORT`
+4. **Configura Variabili d'Ambiente**:
+   ```bash
+   DATABASE_URL=postgresql://...  # Dal database
+   OPENAI_API_KEY=sk-proj-...     # Tua OpenAI key
+   TRADING_BOT_ENABLED=false      # false per test
+   PYTHONUNBUFFERED=1
+   ```
+5. **Genera dominio pubblico** → Visita l'app!
+
+📖 **Continua a leggere per istruzioni dettagliate con screenshot e troubleshooting.**
+
+---
+
 ## 📋 Indice
 
 1. [Introduzione](#introduzione)
