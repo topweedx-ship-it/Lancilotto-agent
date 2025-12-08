@@ -384,13 +384,14 @@ Se vuoi che Railway buildi automaticamente il frontend ad ogni deploy:
 2. Trova **"Custom Build Command"**
 3. Imposta:
    ```bash
-   cd /app && pnpm install && cd frontend && pnpm install && pnpm build && cd ..
+   pnpm install && cd frontend && pnpm install && pnpm build
    ```
 
 Questo comando:
 - Installa `pnpm` (package manager veloce)
 - Installa dipendenze root e frontend
 - Builda il frontend in `static/`
+- Ogni comando è concatenato con `&&` per fermarsi in caso di errore
 
 #### 4.2 Configura Nixpacks per Node.js + Python
 

@@ -98,11 +98,10 @@ nginx/
 # Config files for other platforms
 Makefile
 
-# Media files
+# Media files (keep essential frontend assets)
 *.jpg
-*.png
-logo.png
 img.jpg
+# Note: logo.png is kept as it may be needed by the frontend
 
 # Environment files (use Railway variables instead)
 .env

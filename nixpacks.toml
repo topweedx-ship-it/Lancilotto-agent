@@ -13,7 +13,8 @@ cmds = [
     # Install root dependencies
     'pnpm install --frozen-lockfile || pnpm install',
     # Install backend Python dependencies using uv
-    'cd backend && pip install uv && uv sync --frozen || uv sync'
+    # Use frozen to ensure reproducible builds
+    'cd backend && pip install uv && uv sync --frozen'
 ]
 
 [phases.build]
