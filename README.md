@@ -36,6 +36,27 @@ pnpm dev
 ```
 La dashboard sarà accessibile a `http://localhost:5621`.
 
+## ☁️ Cloud Deployment
+
+### 🚂 Railway (Consigliato per Deploy Veloce)
+
+Railway offre un modo semplice e veloce per deployare il Trading Agent nel cloud utilizzando solo l'interfaccia web, senza bisogno di CLI o configurazioni complesse.
+
+**📖 Guida Completa**: Vedi [RAILWAY_DEPLOY_GUIDE.md](RAILWAY_DEPLOY_GUIDE.md) per istruzioni dettagliate passo per passo su come:
+- Creare account e progetto Railway
+- Deployare database PostgreSQL
+- Configurare e deployare l'applicazione
+- Gestire variabili d'ambiente
+- Monitorare e fare troubleshooting
+
+**✨ Vantaggi Railway:**
+- ✅ Deploy in pochi click dall'interfaccia web
+- ✅ $5/mese di crediti gratuiti inclusi
+- ✅ Database PostgreSQL gestito automaticamente
+- ✅ Auto-deploy da GitHub
+- ✅ SSL/HTTPS automatico
+- ✅ Scaling semplificato
+
 ## 🚀 Docker Deployment
 
 Il progetto supporta sia deployment di sviluppo che produzione completamente containerizzati.

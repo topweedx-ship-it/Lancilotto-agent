@@ -1,0 +1,33 @@
+# Nixpacks configuration for Railway deployment
+# This file tells Railway how to build and deploy the Trading Agent
+
+[phases.setup]
+# Install both Node.js (for frontend build) and Python (for backend)
+nixPkgs = ['nodejs-18_x', 'python313', 'pnpm']
+
+[phases.install]
+# Install all dependencies for both frontend and backend
+cmds = [
+    # Install pnpm globally for faster package management
+    'npm install -g pnpm',
+    # Install root dependencies
+    'pnpm install --frozen-lockfile || pnpm install',
+    # Install backend Python dependencies using uv
+    'cd backend && pip install uv && uv sync --frozen || uv sync'
+]
+
+[phases.build]
+# Build the frontend and place it in static/ directory
+cmds = [
+    # Install frontend dependencies if not already installed
+    'cd frontend && pnpm install --frozen-lockfile || pnpm install',
+    # Build the frontend - output goes to ../static
+    'cd frontend && pnpm build',
+    # List static files to verify build succeeded
+    'ls -la static/'
+]
+
+[start]
+# Start the backend FastAPI server
+# The backend serves both the API and the static frontend files
+cmd = 'cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT'
